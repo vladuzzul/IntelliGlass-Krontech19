@@ -1,0 +1,2139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; connect-src ws: wss: http: https:; img-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self';">
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
+<meta http-equiv="X-Frame-Options" content="DENY">
+<meta http-equiv="Referrer-Policy" content="no-referrer">
+<title>IntelliGlass — Smart Mirror Control</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    /* Palette — Midnight Violet 242038 · Slate Blue 725AC1 · Soft Periwinkle 8D86C9 · Pale Slate CAC4CE · Linen F7ECE1 */
+    --midnight:      #110d28;
+    --midnight-card: #1c1a30;
+    --midnight-deep: #13111f;
+    --slate-blue:    #8668e8;
+    --slate-hover:   #8975cc;
+    --periwinkle:    #8D86C9;
+    --pale-slate:    #b494c9;
+    --linen:         #F7ECE1;
+    --text-primary:  #F7ECE1;
+    --text-muted:    #CAC4CE;
+    --text-dim:      rgba(202,196,206,0.50);
+    --border-soft:   rgba(141,134,201,0.15);
+    --border-mid:    rgba(116, 109, 175, 0.22);
+    --fill-soft:     rgba(141,134,201,0.07);
+    --fill-mid:      rgba(141,134,201,0.12);
+    --fill-hover:    rgba(142, 131, 236, 0.18);
+    --fill-active:   rgba(91, 64, 182, 0.2);
+    --fill-strong:   rgba(114,90,193,0.35);
+    --glow-sm:       rgba(114,90,193,0.08);
+    --glow-md:       rgba(114,90,193,0.20);
+    --success:       #4ade80;
+    --success-fill:  rgba(74,222,128,0.12);
+    --warning:       #f5ca1d;
+    --warning-fill:  rgba(250,204,21,0.12);
+    --danger:        #f87171;
+    --danger-fill:   rgba(220,80,80,0.15);
+    --danger-border: rgba(220,80,80,0.25);
+  }
+
+  html, body {
+    height: 100%;
+    font-family: 'DM Sans', sans-serif;
+    background: var(--midnight);
+    color: var(--text-primary);
+    overflow-x: hidden;
+  }
+
+  /* TOP NAV */
+  .topbar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    height: 60px;
+    background: rgba(28,26,48,0.96);
+    backdrop-filter: blur(18px);
+    border-bottom: 1px solid var(--border-mid);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 28px;
+  }
+  .logo {
+    display: flex; align-items: center; gap: 10px;
+    font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 20px;
+    letter-spacing: -0.5px; color: var(--linen);
+    text-decoration: none;
+  }
+  .logo-icon {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, var(--midnight) 0%, var(--slate-blue) 50%, var(--periwinkle) 100%);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  .logo span { color: var(--periwinkle); }
+  .nav-pills { display: flex; gap: 4px; }
+  .nav-pill {
+    padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 500;
+    cursor: pointer; transition: all 0.2s; border: none;
+    color: var(--text-muted); background: transparent; font-family: inherit;
+  }
+  .nav-pill:hover { background: var(--fill-soft); color: var(--linen); }
+  .nav-pill.active { background: var(--slate-blue); color: white; }
+  .topbar-right { display: flex; align-items: center; gap: 12px; }
+  .status-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--success);
+    animation: pulse-dot 2s infinite;
+  }
+  @keyframes pulse-dot {
+    0%,100% { opacity: 1; box-shadow: 0 0 0 0 rgba(74,222,128,0.4); }
+    50% { opacity: 0.7; box-shadow: 0 0 0 5px rgba(74,222,128,0); }
+  }
+  .status-label { font-size: 12px; color: var(--success); font-weight: 500; }
+  .lang-select {
+    background: var(--fill-mid); border: 1px solid var(--border-mid);
+    color: var(--text-primary); border-radius: 8px; padding: 5px 10px; font-size: 13px;
+    cursor: pointer; outline: none; font-family: inherit;
+  }
+
+  /* SIDEBAR */
+  .layout { display: flex; padding-top: 60px; min-height: 100vh; }
+  .sidebar {
+    width: 220px; flex-shrink: 0;
+    background: linear-gradient(180deg, var(--midnight-card) 0%, var(--midnight-deep) 100%);
+    border-right: 1px solid rgba(141,134,201,0.14);
+    padding: 20px 12px;
+    display: flex; flex-direction: column; gap: 4px;
+    position: sticky; top: 60px; height: calc(100vh - 60px); overflow-y: auto;
+  }
+  .sidebar-section-label {
+    font-size: 10px; font-weight: 600; letter-spacing: 1.2px;
+    color: var(--text-dim); text-transform: uppercase;
+    padding: 12px 8px 6px;
+  }
+  .sidebar-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px; border-radius: 10px;
+    font-size: 13.5px; font-weight: 400; color: var(--text-muted);
+    cursor: pointer; transition: all 0.18s; border: none; background: transparent;
+    text-align: left; width: 100%; font-family: inherit;
+  }
+  .sidebar-item:hover { background: var(--fill-soft); color: var(--linen); }
+  .sidebar-item.active {
+    background: var(--fill-active); color: var(--linen);
+    border: 1px solid var(--border-mid);
+  }
+  .sidebar-item.active .si-icon { color: var(--periwinkle); }
+  .si-icon { font-size: 15px; width: 18px; text-align: center; }
+
+  /* MAIN CONTENT */
+  .main { flex: 1; padding: 28px 32px; max-width: 1100px; }
+
+  /* SECTION TOGGLE */
+  .section { display: none; }
+  .section.visible { display: block; }
+
+  /* PAGE HEADER */
+  .page-header { margin-bottom: 28px; }
+  .page-title {
+    font-family: 'Outfit', sans-serif; font-weight: 600; font-size: 26px;
+    color: var(--linen); letter-spacing: -0.5px;
+  }
+  .page-sub { font-size: 14px; color: var(--text-muted); margin-top: 4px; }
+
+  /* CARD */
+  .card {
+    background: var(--midnight-card);
+    border: 1px solid var(--border-soft);
+    border-radius: 16px; padding: 22px 24px;
+    margin-bottom: 18px;
+    transition: border-color 0.2s;
+  }
+  .card:hover { border-color: rgba(141,134,201,0.28); }
+  .card-title {
+    font-family: 'Outfit', sans-serif; font-weight: 600; font-size: 15px;
+    color: var(--linen); margin-bottom: 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  /* GRID */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+
+  /* STAT CARD */
+  .stat-card {
+    background: var(--midnight-card); border: 1px solid var(--border-soft);
+    border-radius: 14px; padding: 18px 20px;
+    display: flex; flex-direction: column; gap: 6px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .stat-card:hover {
+    border-color: var(--periwinkle);
+    box-shadow: 0 0 0 1px rgba(141,134,201,0.15), 0 4px 20px var(--glow-sm);
+  }
+  .stat-label { font-size: 11px; font-weight: 500; letter-spacing: 0.8px; text-transform: uppercase; color: var(--text-dim); }
+  .stat-value { font-family: 'Outfit', sans-serif; font-size: 28px; font-weight: 600; color: var(--linen); }
+  .stat-sub { font-size: 12px; color: var(--text-muted); }
+
+  /* MIRROR PREVIEW */
+  .mirror-preview-wrap {
+    background: #0a0910; border-radius: 20px;
+    border: 2px solid rgba(141,134,201,0.2);
+    overflow: hidden; position: relative; aspect-ratio: 16/9;
+    box-shadow: 0 0 40px var(--glow-sm);
+  }
+  .mirror-frame {
+    width: 100%; height: 100%; position: relative;
+    background: #080710; display: flex; flex-direction: column;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .mirror-top {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 18px 22px 0;
+  }
+  .mirror-date { font-size: 11px; color: rgba(247,236,225,0.4); }
+  .mirror-time-big { font-family: 'Outfit', sans-serif; font-size: 42px; font-weight: 300; color: rgba(247,236,225,0.85); letter-spacing: -1px; }
+  .mirror-center { flex: 1; display: flex; align-items: center; justify-content: center; }
+  .mirror-greeting { font-size: 16px; font-weight: 300; color: rgba(247,236,225,0.5); letter-spacing: 2px; }
+  .mirror-bottom { padding: 0 22px 18px; display: flex; justify-content: space-between; align-items: flex-end; }
+  .mirror-weather { font-size: 11px; color: rgba(247,236,225,0.45); line-height: 1.6; }
+  .mirror-weather-temp { font-size: 20px; font-weight: 300; color: rgba(247,236,225,0.75); }
+  .mirror-cal { font-size: 9px; color: rgba(247,236,225,0.35); line-height: 1.8; }
+  .mirror-ticker {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: rgba(114,90,193,0.15); border-top: 1px solid rgba(141,134,201,0.12);
+    padding: 5px 22px; font-size: 9px; color: rgba(247,236,225,0.4);
+    overflow: hidden; white-space: nowrap;
+  }
+  .ticker-inner { display: inline-block; animation: ticker 28s linear infinite; }
+  @keyframes ticker { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
+
+  /* WIDGET POSITION GRID */
+  .position-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
+    gap: 6px; width: 160px; height: 120px; margin: 0 auto;
+  }
+  .pos-cell {
+    border-radius: 6px; cursor: pointer; transition: all 0.15s;
+    background: var(--fill-soft); border: 1px solid var(--border-soft);
+    display: flex; align-items: center; justify-content: center; font-size: 9px; color: var(--text-dim);
+  }
+  .pos-cell:hover { background: var(--fill-active); border-color: var(--glow-md); }
+  .pos-cell.selected { background: var(--fill-strong); border-color: var(--slate-blue); color: var(--periwinkle); }
+
+  /* FORM ELEMENTS */
+  label { display: block; font-size: 12px; font-weight: 500; color: var(--text-muted); margin-bottom: 6px; }
+  input[type=text], input[type=number], input[type=password], select, textarea {
+    width: 100%; background: var(--fill-soft);
+    border: 1px solid var(--border-mid); border-radius: 10px;
+    color: var(--text-primary); padding: 10px 14px; font-size: 13.5px;
+    font-family: inherit; outline: none; transition: border 0.18s;
+  }
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--slate-blue); box-shadow: 0 0 0 3px var(--glow-md);
+  }
+  select option { background: var(--midnight); }
+  textarea { resize: vertical; min-height: 80px; }
+  input[type=range] {
+    -webkit-appearance: none; width: 100%; height: 4px;
+    background: var(--fill-mid); border-radius: 2px; outline: none; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
+    background: var(--slate-blue); cursor: pointer; border: 2px solid var(--midnight-card);
+  }
+  .form-row { margin-bottom: 16px; }
+  .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+
+  /* TOGGLE */
+  .toggle-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 0; border-bottom: 1px solid rgba(141,134,201,0.08);
+  }
+  .toggle-row:last-child { border-bottom: none; }
+  .toggle-info { font-size: 13.5px; color: var(--linen); }
+  .toggle-sub { font-size: 11.5px; color: var(--text-dim); margin-top: 2px; }
+  .toggle-switch {
+    position: relative; width: 40px; height: 22px;
+    background: var(--fill-mid); border-radius: 11px;
+    cursor: pointer; transition: background 0.2s; flex-shrink: 0;
+    border: 1px solid var(--border-mid);
+  }
+  .toggle-switch.on { background: var(--slate-blue); border-color: var(--slate-blue); }
+  .toggle-thumb {
+    position: absolute; top: 2px; left: 2px;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: white; transition: transform 0.2s;
+  }
+  .toggle-switch.on .toggle-thumb { transform: translateX(18px); }
+
+  /* BUTTON */
+  .btn {
+    padding: 10px 20px; border-radius: 10px; font-size: 13.5px; font-weight: 500;
+    cursor: pointer; border: none; transition: all 0.18s; font-family: inherit;
+  }
+  .btn-primary { background: var(--slate-blue); color: white; }
+  .btn-primary:hover { background: var(--slate-hover); transform: translateY(-1px); }
+  .btn-ghost { background: var(--fill-soft); color: var(--text-muted); border: 1px solid var(--border-mid); }
+  .btn-ghost:hover { background: var(--fill-hover); color: var(--linen); }
+  .btn-danger { background: var(--danger-fill); color: #f87171; border: 1px solid var(--danger-border); }
+  .btn-danger:hover { background: rgba(220,80,80,0.25); }
+  .btn-row { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+
+  /* BADGE */
+  .badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+  .badge-purple { background: rgba(114,90,193,0.18); color: var(--periwinkle); }
+  .badge-green { background: var(--success-fill); color: var(--success); }
+  .badge-warn { background: var(--warning-fill); color: var(--warning); }
+  .badge-red { background: rgba(248,113,113,0.12); color: #f87171; }
+
+  /* DEVICE CARD */
+  .device-card {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px; border-radius: 12px;
+    background: var(--fill-soft); border: 1px solid rgba(141,134,201,0.12);
+    margin-bottom: 10px;
+  }
+  .device-icon {
+    width: 38px; height: 38px; border-radius: 10px;
+    background: var(--fill-active); display: flex; align-items: center; justify-content: center;
+    font-size: 18px; margin-right: 14px; flex-shrink: 0;
+  }
+  .device-name { font-size: 14px; font-weight: 500; color: var(--linen); }
+  .device-ip { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+
+  /* WEATHER ROW */
+  .weather-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 14px; background: var(--fill-soft);
+    border-radius: 10px; border: 1px solid rgba(141,134,201,0.12);
+    margin-bottom: 8px;
+  }
+  .weather-row span:nth-child(1) { flex: 1; }
+  .weather-row span:nth-child(2) { flex: 1; text-align: center; display: flex; justify-content: center; }
+  .weather-row span:nth-child(3) { flex: 1; text-align: right; }
+
+  /* INFO BOX */
+  .info-box {
+    background: var(--fill-soft); border: 1px solid rgba(141,134,201,0.12);
+    border-radius: 10px; padding: 12px 16px; font-size: 12px; color: var(--text-dim);
+    line-height: 1.7;
+  }
+
+  /* DIVIDER */
+  .divider { height: 1px; background: var(--fill-soft); margin: 12px 0; }
+
+  /* ACCENT BAR */
+  .accent-bar {
+    height: 3px; border-radius: 2px;
+    background: linear-gradient(90deg, var(--slate-blue), var(--periwinkle), var(--pale-slate));
+    margin-bottom: 24px;
+  }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(141,134,201,0.25); border-radius: 3px; }
+
+  /* TOAST */
+  .toast {
+    position: fixed; bottom: 24px; right: 28px; z-index: 9999;
+    background: var(--midnight-card); border: 1px solid rgba(74,222,128,0.3);
+    color: var(--linen); padding: 12px 20px; border-radius: 12px;
+    font-size: 13.5px; display: flex; align-items: center; gap: 8px;
+    transform: translateY(80px); opacity: 0; transition: all 0.3s;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+
+  /* WS LOG */
+  .ws-log {
+    background: var(--midnight-deep); border: 1px solid var(--border-soft);
+    border-radius: 10px; padding: 12px 16px; font-size: 12px; font-family: monospace;
+    color: rgba(141,134,201,0.7); height: 140px; overflow-y: auto; line-height: 1.8;
+  }
+  .ws-log .log-ok { color: var(--success); }
+  .ws-log .log-err { color: #f87171; }
+  .ws-log .log-info { color: var(--periwinkle); }
+
+  /* HAMBURGER BUTTON */
+  .hamburger {
+    display: none; flex-direction: column; justify-content: center; gap: 5px;
+    width: 36px; height: 36px; cursor: pointer;
+    background: var(--fill-mid); border: 1px solid var(--border-mid);
+    border-radius: 8px; padding: 7px; flex-shrink: 0;
+  }
+  .hamburger span {
+    display: block; height: 2px; border-radius: 2px;
+    background: var(--pale-slate); transition: all 0.25s;
+  }
+  .hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  .hamburger.open span:nth-child(2) { opacity: 0; }
+  .hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+  /* OVERLAY */
+  .sidebar-overlay {
+    display: none; position: fixed; inset: 0; z-index: 89;
+    background: rgba(10,9,16,0.6); backdrop-filter: blur(2px);
+  }
+  .sidebar-overlay.show { display: block; }
+
+  /* RESPONSIVE */
+  @media (max-width: 960px) {
+    .grid-4 { grid-template-columns: repeat(2, 1fr); }
+    .grid-3 { grid-template-columns: 1fr 1fr; }
+    .grid-2 { grid-template-columns: 1fr; }
+    .sidebar { width: 190px; }
+    .main { padding: 20px 16px; }
+    .nav-pills { display: none; }
+  }
+  @media (max-width: 680px) {
+    .hamburger { display: flex; }
+    .sidebar {
+      position: fixed; top: 60px; left: 0; height: calc(100vh - 60px);
+      z-index: 90; width: 240px;
+      transform: translateX(-100%);
+      transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+      box-shadow: 4px 0 24px rgba(0,0,0,0.5);
+    }
+    .sidebar.open { transform: translateX(0); }
+    .main { padding: 16px 12px; }
+    .topbar { padding: 0 14px; gap: 10px; }
+    .grid-4, .grid-3 { grid-template-columns: 1fr 1fr; }
+    .status-label { display: none; }
+    .form-row-2 { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 400px) {
+    .grid-4, .grid-3, .grid-2 { grid-template-columns: 1fr; }
+    .logo { font-size: 17px; }
+  }
+</style>
+</head>
+<body>
+
+
+<nav class="topbar">
+  <div style="display:flex; align-items:center; gap:12px;">
+    <button class="hamburger" id="hamburger-btn" aria-label="Meniu" onclick="toggleSidebar()">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="logo">
+      <div class="logo-icon">◈</div>
+      Intelli<span>Glass</span>
+    </div>
+  </div>
+
+  <div class="topbar-right">
+    <div class="status-dot" id="conn-dot" style="background:#f87171;"></div>
+    <span class="status-label" id="conn-label" data-i18n="conn_disconnected">Deconectat</span>
+    <select class="lang-select" onchange="changeLang(this.value)" id="lang-select-top">
+      <option value="ro">🇷🇴 Română</option>
+      <option value="en" selected>🇬🇧 English</option>
+      <option value="de">🇩🇪 Deutsch</option>
+      <option value="hu">🇭🇺 Magyar</option>
+    </select>
+  </div>
+</nav>
+
+<div class="layout">
+
+<!-- OVERLAY for mobile sidebar -->
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+
+<aside class="sidebar" id="main-sidebar">
+  <div class="sidebar-section-label" data-i18n="side_mirror">Oglindiță</div>
+  <button class="sidebar-item active" onclick="showSection('dashboard',null);setSideActive(this)">
+    <span class="si-icon">⬡</span> <span data-i18n="side_overview">Prezentare</span>
+  </button>
+  <button class="sidebar-item" onclick="showSection('layout',null);setSideActive(this)">
+    <span class="si-icon">⊞</span> <span data-i18n="side_layout">Aranjament</span>
+  </button>
+  <button class="sidebar-item" onclick="showSection('widgets',null);setSideActive(this)">
+    <span class="si-icon">◧</span> <span data-i18n="side_widgets">Widget-uri</span>
+  </button>
+
+  <div class="sidebar-section-label" data-i18n="side_customize">Personalizare</div>
+  <button class="sidebar-item" onclick="showSection('weather',null);setSideActive(this)">
+    <span class="si-icon">☁</span> <span data-i18n="side_weather">Vreme</span>
+  </button>
+  <button class="sidebar-item" onclick="showSection('news',null);setSideActive(this)">
+    <span class="si-icon">◉</span> <span data-i18n="side_news">Știri</span>
+  </button>
+  <button class="sidebar-item" onclick="showSection('calendar',null);setSideActive(this)">
+    <span class="si-icon">◫</span> <span data-i18n="side_calendar">Calendar</span>
+  </button>
+
+  <div class="sidebar-section-label" data-i18n="side_system">Sistem</div>
+  <button class="sidebar-item" onclick="showSection('network',null);setSideActive(this)">
+    <span class="si-icon">⊛</span> <span data-i18n="side_network">Rețea / Wi-Fi</span>
+  </button>
+  <button class="sidebar-item" onclick="showSection('settings',null);setSideActive(this)">
+    <span class="si-icon">⚙</span> <span data-i18n="side_settings">Setări</span>
+  </button>
+
+  <div style="margin-top: auto; padding: 16px 8px 8px;">
+    <div style="font-size: 11px; color: var(--text-dim); line-height: 1.7;">
+      <span style="color:var(--linen); font-weight:600;">IntelliGlass</span><br>
+      <span id="sidebar-ip" style="color:rgba(141,134,201,0.4);">—</span>
+    </div>
+  </div>
+</aside>
+
+
+<main class="main">
+
+  <!-- ─── DASHBOARD ─── -->
+  <div id="sec-dashboard" class="section visible">
+    <div class="page-header">
+      <div class="page-title" id="dash-greeting">Welcome 👋</div>
+      <div class="page-sub" data-i18n="dash_sub">Oglinda ta smart este monitorizată în timp real.</div>
+    </div>
+    <div class="accent-bar"></div>
+
+    <div class="grid-4" style="margin-bottom: 20px;">
+      <div class="stat-card">
+        <div class="stat-label" data-i18n="stat_status_lbl">Status RPi</div>
+        <div class="stat-value" id="stat-status" style="font-size:18px; color:#f87171;">Offline</div>
+        <div class="stat-sub" data-i18n="sub_rpi4">Raspberry Pi 4</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label" data-i18n="stat_temp_lbl">Temperatură</div>
+        <div class="stat-value" id="stat-temp">—</div>
+        <div class="stat-sub" id="stat-city">Brașov, RO</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label" data-i18n="stat_widgets_lbl">Widget-uri Active</div>
+        <div class="stat-value" id="stat-widgets">6</div>
+        <div class="stat-sub" data-i18n="stat_on_mirror">Pe oglindă</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label" data-i18n="stat_bright_lbl">Luminozitate</div>
+        <div class="stat-value" id="bright-stat">75%</div>
+        <div class="stat-sub" data-i18n="stat_adjustable">Reglabilă</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <!-- Mirror Preview -->
+      <div class="card">
+        <div class="card-title">◈ <span data-i18n="card_preview">Previzualizare Oglindă</span></div>
+        <div class="mirror-preview-wrap">
+          <div class="mirror-frame">
+            <div class="mirror-top">
+              <div>
+                <div class="mirror-date" id="mirror-date-label">Vineri, 24 aprilie 2026</div>
+                <div class="mirror-time-big" id="mirror-clock">00:00</div>
+              </div>
+              <div class="mirror-cal">
+                <div style="color:rgba(247,236,225,0.6); font-size:9px; margin-bottom:4px;">CALENDAR</div>
+                <div id="mirror-cal-1">↪ Mers la sala &nbsp;&nbsp; 08:00</div>
+                <div id="mirror-cal-2">↪ Meeting Echipa &nbsp;&nbsp; 09:45</div>
+                <div id="mirror-cal-3">↪ Programare Tuns &nbsp;&nbsp; 19:30</div>
+              </div>
+            </div>
+            <div class="mirror-center">
+              <div class="mirror-greeting" id="mirror-greeting-text">Great to see you!</div>
+            </div>
+            <div class="mirror-bottom">
+              <div class="mirror-weather">
+                <div class="mirror-weather-temp" id="mirror-temp-display">—</div>
+                <div id="mirror-weather-sub" data-i18n="mirror_loading" data-i18n="mirror_loading">Se încarcă...</div>
+                <div style="margin-top:4px; opacity:0.7;" id="mirror-forecast-sub"></div>
+              </div>
+              <div style="font-size:9px; color:rgba(247,236,225,0.2); text-align:right;">
+                INTELLIGLASS<br><span style="color:rgba(141,134,201,0.4);">◈ Smart Mirror</span>
+              </div>
+            </div>
+            <div class="mirror-ticker">
+              <span class="ticker-inner" id="mirror-ticker">
+                📰 Conectează oglinda pentru știri live &nbsp;&nbsp;&nbsp;⬥&nbsp;&nbsp;&nbsp; 🌤 IntelliGlass — Smart Mirror Controller &nbsp;&nbsp;&nbsp;⬥&nbsp;&nbsp;&nbsp; ◈ Kronsoft 2026 &nbsp;&nbsp;&nbsp;⬥&nbsp;&nbsp;&nbsp;
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Controls -->
+      <div class="card">
+        <div class="card-title">⚡ <span data-i18n="card_quickcontrol">Control Rapid</span></div>
+
+        <div class="form-row">
+          <label data-i18n-prefix="lbl_brightness">Luminozitate Ecran — <span id="bright-label">75%</span></label>
+          <input type="range" min="0" max="100" value="75" id="bright-slider"
+            oninput="setBrightness(this.value)">
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-info" data-i18n="tog_nightmode">Modul Noapte</div>
+            <div class="toggle-sub" data-i18n="tog_nightmode_sub">Reduce luminozitatea după 22:00</div>
+          </div>
+          <div class="toggle-switch on" id="tog-night" onclick="toggleSwitch(this,'night_mode')">
+            <div class="toggle-thumb"></div>
+          </div>
+        </div>
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-info" data-i18n="tog_clock">Afișare Ceas</div>
+            <div class="toggle-sub" data-i18n="tog_clock_sub">Ora digitală pe oglindă</div>
+          </div>
+          <div class="toggle-switch on" id="tog-clock" onclick="toggleSwitch(this,'show_clock')">
+            <div class="toggle-thumb"></div>
+          </div>
+        </div>
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-info" data-i18n="tog_ticker">Ticker Știri</div>
+            <div class="toggle-sub" data-i18n="tog_ticker_sub">Bandă derulantă în josul oglinzii</div>
+          </div>
+          <div class="toggle-switch on" id="tog-ticker" onclick="toggleSwitch(this,'show_ticker')">
+            <div class="toggle-thumb"></div>
+          </div>
+        </div>
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-info" data-i18n="tog_weather">Afișare Vreme</div>
+            <div class="toggle-sub" data-i18n="tog_weather_sub">Prognoză meteo pe oglindă</div>
+          </div>
+          <div class="toggle-switch on" id="tog-weather" onclick="toggleSwitch(this,'show_weather')">
+            <div class="toggle-thumb"></div>
+          </div>
+        </div>
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-info" data-i18n="tog_calendar">Afișare Calendar</div>
+            <div class="toggle-sub" data-i18n="tog_calendar_sub">Evenimente Google Calendar</div>
+          </div>
+          <div class="toggle-switch on" id="tog-cal" onclick="toggleSwitch(this,'show_calendar')">
+            <div class="toggle-thumb"></div>
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="sendCommand({type:'apply_all'});showToast((translations[currentLang]||translations.ro).toast_applied)" data-i18n="btn_apply_mirror">
+            Aplică pe Oglindă
+          </button>
+          <button class="btn btn-ghost" onclick="sendCommand({type:'reload'});showToast((translations[currentLang]||translations.ro).toast_reload)" data-i18n="btn_reload">
+            Reîncarcă
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- WebSocket Connection Card -->
+    <div class="card">
+      <div class="card-title">🔌 <span data-i18n="card_ws">Conexiune WebSocket cu Raspberry Pi</span></div>
+      <div class="form-row-2">
+        <div>
+          <label data-i18n="lbl_ip">IP Raspberry Pi</label>
+          <input type="text" id="ws-ip" value="192.168.1.104" placeholder="ex: 192.168.1.104">
+        </div>
+        <div>
+          <label data-i18n="lbl_port">Port WebSocket</label>
+          <input type="number" id="ws-port" value="8080" min="1" max="65535">
+        </div>
+      </div>
+      <div class="btn-row" style="margin-top:4px; margin-bottom:14px;">
+        <button class="btn btn-primary" onclick="connectWS()" data-i18n="btn_connect">Conectează</button>
+        <button class="btn btn-ghost" onclick="disconnectWS()" data-i18n="btn_disconnect">Deconectează</button>
+      </div>
+      <div class="ws-log" id="ws-log">
+        <span class="log-info">[IntelliGlass] <span data-i18n="ws_hint">Introdu IP-ul Raspberry Pi și apasă Conectează.</span></span><br>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── LAYOUT ─── -->
+  <div id="sec-layout" class="section">
+    <div class="page-header">
+      <div class="page-title" data-i18n="page_layout">Aranjament Widget-uri</div>
+      <div class="page-sub" data-i18n="page_layout_sub">Selectează poziția și stilizarea fiecărui widget pe suprafața oglinzii.</div>
+    </div>
+    <div class="accent-bar"></div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">🗺 <span data-i18n="card_position">Poziție Widget</span></div>
+        <div class="form-row">
+          <label data-i18n="lbl_widget_select">Widget de configurat</label>
+          <select id="widget-selector" onchange="updatePosLabel()">
+            <option value="clock" data-i18n="wopt_clock">🕐 Ceas Digital</option>
+            <option value="weather" data-i18n="wopt_weather">☁ Vreme</option>
+            <option value="calendar" data-i18n="wopt_calendar">📅 Calendar</option>
+            <option value="newsticker" data-i18n="wopt_ticker">📰 Ticker Știri</option>
+            <option value="greeting" data-i18n="wopt_greeting">💬 <span data-i18n="card_greeting">Mesaj de Bun Venit</span></option>
+            <option value="sysinfo" data-i18n="wopt_sysinfo">📊 Statistici Sistem</option>
+          </select>
+        </div>
+        <div style="text-align:center; margin: 12px 0 8px;">
+          <div style="font-size: 12px; color: var(--text-dim); margin-bottom: 10px;">Suprafața oglinzii — selectează zona</div>
+          <div class="position-grid" id="pos-grid">
+            <div class="pos-cell" onclick="selectPos(this,'top_left','Stânga Sus')">↖</div>
+            <div class="pos-cell" onclick="selectPos(this,'top_center','Sus Centru')">↑</div>
+            <div class="pos-cell" onclick="selectPos(this,'top_right','Dreapta Sus')">↗</div>
+            <div class="pos-cell" onclick="selectPos(this,'middle_left','Stânga Mijloc')">←</div>
+            <div class="pos-cell selected" onclick="selectPos(this,'center','Centru')">C</div>
+            <div class="pos-cell" onclick="selectPos(this,'middle_right','Dreapta Mijloc')">→</div>
+            <div class="pos-cell" onclick="selectPos(this,'bottom_left','Stânga Jos')">↙</div>
+            <div class="pos-cell" onclick="selectPos(this,'bottom_center','Jos Centru')">↓</div>
+            <div class="pos-cell" onclick="selectPos(this,'bottom_right','Dreapta Jos')">↘</div>
+          </div>
+          <div style="font-size: 11px; color: var(--periwinkle); margin-top: 10px;" id="pos-label">Centru selectat</div>
+        </div>
+        <div class="btn-row" style="justify-content:center;">
+          <button class="btn btn-primary" onclick="applyPosition()" data-i18n="btn_save_pos">Salvează Poziția</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🎨 <span data-i18n="card_style">Stilizare Widget</span></div>
+        <div class="form-row">
+          <label data-i18n="lbl_font">Font Afișaj</label>
+          <select id="widget-font">
+            <option>Outfit (Sans-serif)</option>
+            <option>DM Sans</option>
+            <option>Monospace</option>
+          </select>
+        </div>
+        <div class="form-row-2">
+          <div>
+            <label data-i18n="lbl_fontsize">Mărime Font (px)</label>
+            <input type="number" id="font-size" value="48" min="12" max="120">
+          </div>
+          <div>
+            <label data-i18n="lbl_opacity">Opacitate (%)</label>
+            <input type="number" id="opacity-val" value="85" min="10" max="100">
+          </div>
+        </div>
+        <div class="form-row">
+          <label data-i18n="lbl_color">Culoare Text</label>
+          <select id="widget-color">
+            <option value="F7ECE1" data-i18n="col_warmwhite">Alb Cald #F7ECE1</option>
+            <option value="FFFFFF" data-i18n="col_purewhite">Alb Pur #FFFFFF</option>
+            <option value="CAC4CE">Pale Slate #CAC4CE</option>
+            <option value="8D86C9">Periwinkle #8D86C9</option>
+            <option value="725AC1">Slate Blue #725AC1</option>
+          </select>
+        </div>
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-info" data-i18n="tog_fadein">Animație Fade-in</div>
+            <div class="toggle-sub" data-i18n="tog_fadein_sub">La pornire și refresh</div>
+          </div>
+          <div class="toggle-switch on" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
+        </div>
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-info" data-i18n="tog_glow">Efect Glow</div>
+            <div class="toggle-sub" data-i18n="tog_glow_sub">Luminos subtil în jurul textului</div>
+          </div>
+          <div class="toggle-switch" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="applyStyle()" data-i18n="btn_apply_style">Aplică Stil</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── WIDGETS ─── -->
+  <div id="sec-widgets" class="section">
+    <div class="page-header">
+      <div class="page-title" data-i18n="page_widgets">Gestionare Widget-uri</div>
+      <div class="page-sub" data-i18n="page_widgets_sub">Activează, dezactivează și configurează modulele afișate pe oglindă.</div>
+    </div>
+    <div class="accent-bar"></div>
+    <div class="grid-3">
+      <div class="card" style="border-color: var(--glow-md);">
+        <div style="font-size:32px; margin-bottom:10px;">🕐</div>
+        <div style="font-size:15px; font-weight:600; color:var(--linen); margin-bottom:4px;" data-i18n="wname_clock">Ceas Digital</div>
+        <div style="font-size:12px; color:var(--text-dim); margin-bottom:12px;" data-i18n="wdesc_clock" data-i18n="wdesc_clock">Oră și dată în timp real. Actualizare la 1 secundă.</div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span class="badge badge-green" data-i18n="badge_active">Activ</span>
+          <button class="btn btn-ghost" style="padding:5px 12px; font-size:12px;" onclick="showSection('layout',null);setSideActive(document.querySelectorAll('.sidebar-item')[1])" data-i18n="btn_configure">Configurează</button>
+        </div>
+      </div>
+      <div class="card" style="border-color: var(--glow-md);">
+        <div style="font-size:32px; margin-bottom:10px;">☁</div>
+        <div style="font-size:15px; font-weight:600; color:var(--linen); margin-bottom:4px;" data-i18n="wname_weather">Vreme</div>
+        <div style="font-size:12px; color:var(--text-dim); margin-bottom:12px;" data-i18n="wdesc_weather" data-i18n="wdesc_weather">Prognoză 5 zile, temperatură curentă, vânt.</div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span class="badge badge-green">Activ</span>
+          <button class="btn btn-ghost" style="padding:5px 12px; font-size:12px;" onclick="showSection('weather',null);setSideActive(document.querySelectorAll('.sidebar-item')[1])" data-i18n="btn_configure">Configurează</button>
+        </div>
+      </div>
+      <div class="card" style="border-color: var(--glow-md);">
+        <div style="font-size:32px; margin-bottom:10px;">📅</div>
+        <div style="font-size:15px; font-weight:600; color:var(--linen); margin-bottom:4px;" data-i18n="wname_calendar">Google Calendar</div>
+        <div style="font-size:12px; color:var(--text-dim); margin-bottom:12px;" data-i18n="wdesc_calendar" data-i18n="wdesc_calendar">Afișează evenimentele din calendarul Google.</div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span class="badge badge-green">Activ</span>
+          <button class="btn btn-ghost" style="padding:5px 12px; font-size:12px;" onclick="showSection('calendar',null);setSideActive(document.querySelectorAll('.sidebar-item')[1])" data-i18n="btn_configure">Configurează</button>
+        </div>
+      </div>
+      <div class="card" style="border-color: var(--glow-md);">
+        <div style="font-size:32px; margin-bottom:10px;">📰</div>
+        <div style="font-size:15px; font-weight:600; color:var(--linen); margin-bottom:4px;" data-i18n="wname_ticker">Ticker Știri</div>
+        <div style="font-size:12px; color:var(--text-dim); margin-bottom:12px;" data-i18n="wdesc_ticker" data-i18n="wdesc_ticker">Bandă derulantă cu știri RSS sau text custom.</div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span class="badge badge-green">Activ</span>
+          <button class="btn btn-ghost" style="padding:5px 12px; font-size:12px;" onclick="showSection('news',null)">Configurează</button>
+        </div>
+      </div>
+      <div class="card" style="border-color: var(--glow-md);">
+        <div style="font-size:32px; margin-bottom:10px;">💬</div>
+        <div style="font-size:15px; font-weight:600; color:var(--linen); margin-bottom:4px;" data-i18n="wname_greeting">Mesaj Bun Venit</div>
+        <div style="font-size:12px; color:var(--text-dim); margin-bottom:12px;" data-i18n="wdesc_greeting" data-i18n="wdesc_greeting">Text personalizat în centrul oglinzii.</div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span class="badge badge-green">Activ</span>
+          <button class="btn btn-ghost" style="padding:5px 12px; font-size:12px;" onclick="showSection('calendar',null);setSideActive(document.querySelectorAll('.sidebar-item')[1])" data-i18n="btn_configure">Configurează</button>
+        </div>
+      </div>
+      <div class="card">
+        <div style="font-size:32px; margin-bottom:10px;">📊</div>
+        <div style="font-size:12px; color:var(--text-dim); margin-bottom:12px;" data-i18n="wdesc_sysinfo" data-i18n="wdesc_sysinfo">CPU, RAM, temperatură procesor.</div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span class="badge badge-warn" data-i18n="badge_inactive">Inactiv</span>
+          <button class="btn btn-ghost" style="padding:5px 12px; font-size:12px;" onclick="sendCommand({type:'enable_widget',widget:'sysinfo'});showToast((translations[currentLang]||translations.ro).toast_widget_active)" data-i18n="btn_activate">Activează</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── WEATHER ─── -->
+  <div id="sec-weather" class="section">
+    <div class="page-header">
+      <div class="page-title" data-i18n="page_weather">Configurare Vreme</div>
+      <div class="page-sub" data-i18n="page_weather_sub">Setează locația și modul de afișare al prognozei meteo pe oglindă.</div>
+    </div>
+    <div class="accent-bar"></div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">📍 <span data-i18n="card_location">Locație & Setări</span></div>
+        <div class="form-row">
+          <label data-i18n="lbl_city">Orașul tău</label>
+          <input type="text" id="weather-city" value="Brașov" placeholder="ex: Cluj-Napoca, Sibiu...">
+        </div>
+        <div class="form-row">
+          <label data-i18n="lbl_country">Cod țară (ISO)</label>
+          <input type="text" id="weather-country" value="RO" placeholder="ex: RO, DE, GB">
+        </div>
+        <div class="form-row">
+          <label data-i18n="lbl_tempunit">Unitate temperatură</label>
+          <select id="temp-unit">
+            <option value="metric" selected data-i18n="opt_celsius">Celsius (°C)</option>
+            <option value="imperial" data-i18n="opt_fahrenheit">Fahrenheit (°F)</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label data-i18n="lbl_forecastdays">Zile prognoză afișate</label>
+          <select id="forecast-days">
+            <option value="3" data-i18n="opt_3days">3 zile</option>
+            <option value="5" selected data-i18n="opt_5days">5 zile</option>
+            <option value="7" data-i18n="opt_7days">7 zile</option>
+          </select>
+        </div>
+        <div class="toggle-row">
+          <div><div class="toggle-info" data-i18n="tog_wind">Afișare Vânt</div></div>
+          <div class="toggle-switch on" id="tog-wind" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
+        </div>
+        <div class="toggle-row">
+          <div><div class="toggle-info" data-i18n="tog_humidity">Afișare Umiditate</div></div>
+          <div class="toggle-switch" id="tog-humidity" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
+        </div>
+        <div class="toggle-row">
+          <div><div class="toggle-info" data-i18n="tog_autoupdate">Actualizare automată (15 min)</div></div>
+          <div class="toggle-switch on" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="applyWeather()" data-i18n="btn_apply_weather">Aplică Setări Vreme</button>
+          <button class="btn btn-ghost" onclick="fetchWeatherPreview()" data-i18n="btn_refresh_weather">Actualizează Previzualizare</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">🌤 Prognoză Actuală — <span id="weather-city-label">Brașov</span></div>
+        <div id="weather-preview-rows">
+          <div class="weather-row">
+            <span style="font-size:13px; color:var(--text-muted);">Astăzi</span>
+            <span style="font-size:20px;">🌤</span>
+            <span style="font-size:15px; font-weight:500; color:var(--linen);">8.6° / 5.3°</span>
+          </div>
+          <div class="weather-row">
+            <span style="font-size:13px; color:var(--text-muted);">Mâine</span>
+            <span style="font-size:20px;">🌧</span>
+            <span style="font-size:15px; font-weight:500; color:var(--linen);">6.3° / 2.2°</span>
+          </div>
+          <div class="weather-row">
+            <span style="font-size:13px; color:var(--text-muted);">Joi</span>
+            <span style="font-size:20px;">☀</span>
+            <span style="font-size:15px; font-weight:500; color:var(--linen);">11.7° / 0.7°</span>
+          </div>
+          <div class="weather-row">
+            <span style="font-size:13px; color:var(--text-muted);">Vineri</span>
+            <span style="font-size:20px;">⛅</span>
+            <span style="font-size:15px; font-weight:500; color:var(--linen);">13.5° / 5.1°</span>
+          </div>
+          <div class="weather-row">
+            <span style="font-size:13px; color:var(--text-muted);">Sâmbătă</span>
+            <span style="font-size:20px;">☀</span>
+            <span style="font-size:15px; font-weight:500; color:var(--linen);">15.7° / 2.7°</span>
+          </div>
+        </div>
+        <div class="info-box" style="margin-top:14px;">
+          <span data-i18n="info_weather_api">💡 Datele meteo sunt preluate via API OpenWeatherMap. Configurează cheia API în secțiunea Setări → API Keys pentru date în timp real.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── NEWS ─── -->
+  <div id="sec-news" class="section">
+    <div class="page-header">
+      <div class="page-title" data-i18n="page_news">Configurare Știri</div>
+      <div class="page-sub" data-i18n="page_news_sub">Personalizează sursa și conținutul banderolei derulante de pe oglindă.</div>
+    </div>
+    <div class="accent-bar"></div>
+    <div class="card">
+      <div class="card-title">📡 <span data-i18n="card_rss">Surse RSS</span></div>
+      <div class="form-row">
+        <label data-i18n="lbl_rss_main">Feed RSS Principal</label>
+        <input type="text" id="rss-main" value="https://feeds.digi24.ro/rss/stiri" placeholder="https://...">
+      </div>
+      <div class="form-row">
+        <label data-i18n="lbl_rss_secondary">Feed RSS Secundar (opțional)</label>
+        <input type="text" id="rss-secondary" value="" placeholder="https://...">
+      </div>
+      <div class="form-row-2">
+        <div>
+          <label data-i18n="lbl_news_cat">Categorie Știri</label>
+          <select id="news-cat">
+            <option value="all" data-i18n="opt_all">Toate</option>
+            <option value="politics" data-i18n="opt_politics">Politică</option>
+            <option value="sport" data-i18n="opt_sport">Sport</option>
+            <option value="tech" data-i18n="opt_tech">Tech</option>
+            <option value="economy" data-i18n="opt_economy">Economie</option>
+            <option value="local">Local Brașov</option>
+          </select>
+        </div>
+        <div>
+          <label data-i18n="lbl_ticker_speed">Viteză ticker</label>
+          <select id="ticker-speed">
+            <option value="slow" data-i18n="opt_slow">Lentă</option>
+            <option value="normal" selected data-i18n="opt_normal">Normală</option>
+            <option value="fast" data-i18n="opt_fast">Rapidă</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">✏ <span data-i18n="card_ticker_manual">Ticker Manual (înlocuiește RSS)</span></div>
+      <div class="form-row">
+        <label data-i18n="lbl_ticker_custom">Text personalizat pentru banderoló</label>
+        <textarea id="custom-ticker" placeholder="📰 Știrea ta aici ⬥ O altă știre ⬥ Și încă una...">📰 BNR menține dobânda de politică monetară la 6,5% ⬥ 🌤 Brașov: temperaturi în creștere joi și vineri ⬥ 🏆 Romania a calificat 3 sportivi la Olimpiada 2028 ⬥ 💻 Kronsoft Innovation Hub — cea mai bună echipă 2026</textarea>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="applyTicker()" data-i18n="btn_apply_ticker">Aplică Ticker pe Oglindă</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('custom-ticker').value=''" data-i18n="btn_clear">Golește</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── CALENDAR ─── -->
+  <div id="sec-calendar" class="section">
+    <div class="page-header">
+      <div class="page-title" data-i18n="page_calendar">Calendar & Mesaj</div>
+      <div class="page-sub" data-i18n="page_calendar_sub">Configurează Google Calendar și mesajul personal afișat pe oglindă.</div>
+    </div>
+    <div class="accent-bar"></div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">📅 <span data-i18n="card_cal_settings">Setări Calendar</span></div>
+        <div class="device-card" style="margin-bottom:16px;">
+          <div class="device-icon">📅</div>
+          <div style="flex:1;">
+            <div class="device-name" data-i18n="wname_calendar">Google Calendar</div>
+            <div class="device-ip" data-i18n="cal_device_sub">Configurează URL-ul CalDAV sau integrarea Google</div>
+          </div>
+          <span class="badge badge-warn" data-i18n="badge_notconnected">Neconectat</span>
+        </div>
+        <div class="form-row">
+          <label data-i18n="lbl_cal_url">URL Calendar (iCal / CalDAV)</label>
+          <input type="text" id="cal-url" value="" placeholder="https://calendar.google.com/...">
+        </div>
+        <div class="form-row-2">
+          <div>
+            <label data-i18n="lbl_events_shown">Evenimente afișate</label>
+            <select id="cal-events">
+              <option>3</option>
+              <option selected>5</option>
+              <option>7</option>
+            </select>
+          </div>
+          <div>
+            <label data-i18n="lbl_cal_range">Interval</label>
+            <select id="cal-range">
+              <option data-i18n="opt_today">Azi</option>
+              <option selected data-i18n="opt_today_tomorrow">Azi + Mâine</option>
+              <option data-i18n="opt_this_week">Săptămâna asta</option>
+            </select>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="applyCalendar()" data-i18n="btn_save_calendar">Salvează Calendar</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">💬 Mesaj de Bun Venit</div>
+        <div class="form-row">
+          <label data-i18n="lbl_greeting">Mesajul afișat în centrul oglinzii</label>
+          <input type="text" id="greeting-input" value="Great to see you!" placeholder="Bun venit acasă!">
+        </div>
+        <div style="font-size:12px; color:var(--text-dim); margin-bottom:16px; line-height:1.6;">
+          Sugestii: <span style="color:var(--periwinkle); cursor:pointer;" onclick="setGreeting('Bun venit acasă!')" data-i18n="suggest1">Bun venit acasă!</span> ·
+          <span style="color:var(--periwinkle); cursor:pointer;" onclick="setGreeting('Zi bună, Vlad!')" data-i18n="suggest2">Zi bună!</span> ·
+          <span style="color:var(--periwinkle); cursor:pointer;" onclick="setGreeting('Have a great day!')" data-i18n="suggest3">Have a great day!</span>
+        </div>
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-info" data-i18n="tog_timegreet">Salut bazat pe oră</div>
+            <div class="toggle-sub" data-i18n="tog_timegreet_sub">Dimineața / Ziua / Seara</div>
+          </div>
+          <div class="toggle-switch" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
+        </div>
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-info" data-i18n="tog_username">Afișare nume utilizator</div>
+            <div class="toggle-sub" data-i18n="tog_username_sub">Recunoaștere facială necesară</div>
+          </div>
+          <div class="toggle-switch" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="applyGreeting()" data-i18n="btn_apply_greeting">Aplică Mesajul</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── NETWORK ─── -->
+  <div id="sec-network" class="section">
+    <div class="page-header">
+      <div class="page-title" data-i18n="page_network">Rețea & Conectivitate</div>
+      <div class="page-sub" data-i18n="page_network_sub">Gestionează conexiunea Wi-Fi și dispozitivele conectate la oglinda smart.</div>
+    </div>
+    <div class="accent-bar"></div>
+    <div class="card">
+      <div class="card-title">📡 <span data-i18n="card_server">Server Web — Raspberry Pi 4</span></div>
+      <div style="display:flex; gap:18px; flex-wrap:wrap; margin-bottom:18px;">
+        <div style="flex:1; min-width:120px;">
+          <div style="font-size:11px; color:var(--text-dim); margin-bottom:4px;" data-i18n="net_ip_label">IP Oglindă</div>
+          <div style="font-family:'Outfit',sans-serif; font-size:20px; color:var(--periwinkle);" id="net-ip">—</div>
+        </div>
+        <div style="flex:1; min-width:120px;">
+          <div style="font-size:11px; color:var(--text-dim); margin-bottom:4px;" data-i18n="net_port_label">Port</div>
+          <div style="font-family:'Outfit',sans-serif; font-size:20px; color:var(--periwinkle);">8080</div>
+        </div>
+        <div style="flex:1; min-width:120px;">
+          <div style="font-size:11px; color:var(--text-dim); margin-bottom:4px;" data-i18n="net_protocol_label">Protocol</div>
+          <div style="font-family:'Outfit',sans-serif; font-size:20px; color:var(--periwinkle);">HTTP/WS</div>
+        </div>
+        <div style="flex:1; min-width:120px;">
+          <div style="font-size:11px; color:var(--text-dim); margin-bottom:4px;" data-i18n="net_clients_label">Clienți activi</div>
+          <div style="font-family:'Outfit',sans-serif; font-size:20px; color:var(--success);" id="net-clients">0</div>
+        </div>
+      </div>
+      <div class="info-box">
+        <span data-i18n="info_network_hint">🔗 Conectează-te din orice browser în aceeași rețea Wi-Fi la</span>
+        <span style="color:var(--periwinkle);" id="net-url">http://&lt;IP&gt;:8080</span>
+        — nu este nevoie de instalare. IntelliGlass rulează direct ca server web pe Raspberry Pi.
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">📱 <span data-i18n="card_devices">Dispozitive Conectate</span></div>
+      <div id="net-devices">
+        <div style="color:var(--text-dim); font-size:13px; padding:12px 0;">
+          <span data-i18n="net_no_devices">Niciun dispozitiv conectat. Conectează oglinda pentru a vedea clienții activi.</span>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">📶 <span data-i18n="card_wifi">Setări Wi-Fi Oglindă</span></div>
+      <div class="form-row-2">
+        <div>
+          <label data-i18n="lbl_ssid">Nume Rețea (SSID)</label>
+          <input type="text" id="wifi-ssid" value="" placeholder="Numele rețelei tale Wi-Fi">
+        </div>
+        <div>
+          <label data-i18n="lbl_wifipass">Parolă Wi-Fi</label>
+          <input type="password" id="wifi-pass" value="" placeholder="Parola rețelei">
+        </div>
+      </div>
+      <div class="info-box" style="margin-bottom:14px;">
+        <span data-i18n="info_wifi_warning">⚠ Modificarea credențialelor Wi-Fi va reporni modulul wireless al Raspberry Pi. Asigurați-vă că datele sunt corecte.</span>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" data-i18n="btn_save_wifi" onclick="sendCommand({type:'wifi_config', ssid: document.getElementById('wifi-ssid').value, pass:'***'});showToast((translations[currentLang]||translations.ro).toast_wifi)">
+          Salvează & Aplică Wi-Fi
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── SETTINGS ─── -->
+  <div id="sec-settings" class="section">
+    <div class="page-header">
+      <div class="page-title" data-i18n="page_settings">Setări Aplicație</div>
+      <div class="page-sub" data-i18n="page_settings_sub">Configurări globale pentru IntelliGlass, oglinda smart și integrările externe.</div>
+    </div>
+    <div class="accent-bar"></div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">🌐 <span data-i18n="card_lang">Limbă & Regiune</span></div>
+        <div class="form-row">
+          <label data-i18n="lbl_lang">Limbă interfață</label>
+          <select id="set-lang" onchange="changeLang(this.value)">
+            <option value="ro">Română</option>
+            <option value="en" selected>English</option>
+            <option value="de">Deutsch</option>
+            <option value="hu">Magyar</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label data-i18n="lbl_dateformat">Format dată oglindă</label>
+          <select id="set-dateformat">
+            <option selected>Joi, 24 aprilie 2026</option>
+            <option>Thursday, April 24, 2026</option>
+            <option>Donnerstag, 24. April 2026</option>
+            <option>2026-04-24</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label data-i18n="lbl_timeformat">Format oră</label>
+          <select id="set-timeformat">
+            <option value="24" selected>24h — 14:30</option>
+            <option value="12">12h — 2:30 PM</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label data-i18n="lbl_timezone">Fus orar</label>
+          <select id="set-timezone">
+            <option selected>Europe/Bucharest (UTC+3)</option>
+            <option>UTC (UTC+0)</option>
+            <option>Europe/London (UTC+1)</option>
+            <option>Europe/Berlin (UTC+2)</option>
+          </select>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="applyLocale()" data-i18n="btn_save_lang">Salvează Limbă & Regiune</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🔑 <span data-i18n="card_apikeys">API Keys</span></div>
+        <div class="form-row">
+          <label data-i18n="lbl_owm">OpenWeatherMap API Key</label>
+          <input type="password" id="owm-key" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+        </div>
+        <div class="form-row">
+          <label data-i18n="lbl_gcal">Google Calendar API Key</label>
+          <input type="password" id="gcal-key" placeholder="AIzaSy...">
+        </div>
+        <div class="form-row">
+          <label data-i18n="lbl_newsapi">NewsAPI Key (opțional)</label>
+          <input type="password" id="news-key" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+        </div>
+        <div class="info-box" style="margin-bottom:14px;">
+          <span data-i18n="info_apikeys">🔒 Cheile API sunt stocate criptat pe Raspberry Pi și nu sunt transmise în rețea.</span>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="saveAPIKeys()" data-i18n="btn_save_apikeys">Salvează Cheile API</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🔒 <span data-i18n="card_security">Securitate & Access</span></div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:0;">
+        <div>
+          <div class="toggle-row">
+            <div>
+              <div class="toggle-info" data-i18n="tog_password">Parolă acces interfață web</div>
+              <div class="toggle-sub" data-i18n="tog_password_sub">Protejează panoul de control</div>
+            </div>
+            <div class="toggle-switch" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
+          </div>
+          <div class="toggle-row">
+            <div>
+              <div class="toggle-info" data-i18n="tog_localonly">Numai rețea locală</div>
+              <div class="toggle-sub" data-i18n="tog_localonly_sub">Blochează accesul din internet</div>
+            </div>
+            <div class="toggle-switch on" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
+          </div>
+        </div>
+        <div>
+          <div class="toggle-row">
+            <div>
+              <div class="toggle-info" data-i18n="tog_log">Log activitate utilizatori</div>
+              <div class="toggle-sub" data-i18n="tog_log_sub">Salvează acțiunile pe oglindă</div>
+            </div>
+            <div class="toggle-switch" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
+          </div>
+          <div class="toggle-row">
+            <div>
+              <div class="toggle-info" data-i18n="tog_autoupdate2">Actualizări automate</div>
+              <div class="toggle-sub" data-i18n="tog_autoupdate2_sub">Actualizare MagicMirror²</div>
+            </div>
+            <div class="toggle-switch on" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">⚡ <span data-i18n="card_system">Control Sistem RPi4</span></div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="btn btn-ghost" onclick="sendCommand({type:'restart_mm'});showToast('↺ MagicMirror² repornit!')" data-i18n="btn_restart_mm">Repornire MM²</button>
+          <button class="btn btn-ghost" onclick="sendCommand({type:'reboot'});showToast('↺ RPi4 repornește...')" data-i18n="btn_reboot">Repornire RPi</button>
+          <button class="btn btn-ghost" onclick="sendCommand({type:'shutdown'});showToast('⏻ Oprire programată...')" data-i18n="btn_shutdown">Oprire RPi</button>
+          <button class="btn btn-danger" onclick="confirmReset()" data-i18n="btn_factory_reset">Reset Fabrică</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">ℹ <span data-i18n="card_about">Despre IntelliGlass</span></div>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div style="display:flex; justify-content:space-between; font-size:13px;">
+            <span style="color:var(--text-dim);" data-i18n="about_version">Versiune</span>
+            <span>1.0.0 · Build 2026.04</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:13px;">
+            <span style="color:var(--text-dim);" data-i18n="about_hardware">Hardware</span>
+            <span>Raspberry Pi 4 Model B · 4GB</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:13px;">
+            <span style="color:var(--text-dim);" data-i18n="about_framework">Framework Oglindă</span>
+            <span style="color:var(--periwinkle);">MagicMirror² Open Source</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:13px;">
+            <span style="color:var(--text-dim);" data-i18n="about_project">Proiect</span>
+            <span style="color:var(--periwinkle);">Kronsoft Innovation 2026</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:13px;">
+            <span style="color:var(--text-dim);" data-i18n="about_protocol">Protocol comunicare</span>
+            <span>WebSocket + HTTP REST</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <span id="toast-icon" style="font-size:16px;">✓</span>
+  <span id="toast-msg">Modificare aplicată!</span>
+</div>
+
+<script>
+
+/* Sanitizează un string */
+function sanitize(str) {
+  if (typeof str !== 'string') return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+    .replace(/\//g, '&#x2F;')
+    .trim();
+}
+
+/* Setează textContent (sigur */
+function setText(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = typeof val === 'string' ? val : String(val);
+}
+
+/* Validează că un string este IP valid */
+function isValidIP(ip) {
+  return /^(\d{1,3}\.){3}\d{1,3}$/.test(ip) &&
+    ip.split('.').every(n => parseInt(n) >= 0 && parseInt(n) <= 255);
+}
+
+/* Validează că un port este valid */
+function isValidPort(p) {
+  const n = parseInt(p);
+  return !isNaN(n) && n >= 1 && n <= 65535;
+}
+
+/* Returnează valoarea unui input text, sanitizată */
+function getInput(id) {
+  const el = document.getElementById(id);
+  return el ? sanitize(el.value) : '';
+}
+
+/* MOBILE SIDEBAR TOGGLE */
+function toggleSidebar() {
+  const sidebar = document.getElementById('main-sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  const btn = document.getElementById('hamburger-btn');
+  const isOpen = sidebar.classList.contains('open');
+  if (isOpen) {
+    sidebar.classList.remove('open');
+    overlay.classList.remove('show');
+    btn.classList.remove('open');
+  } else {
+    sidebar.classList.add('open');
+    overlay.classList.add('show');
+    btn.classList.add('open');
+  }
+}
+
+function closeSidebar() {
+  document.getElementById('main-sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('show');
+  document.getElementById('hamburger-btn').classList.remove('open');
+}
+
+/* STATE */
+const state = {
+  ws: null,
+  connected: false,
+  config: {
+    city: 'Brașov',
+    greeting: 'Great to see you!',
+    brightness: 75,
+    ticker: '',
+    widget_positions: {},
+  }
+};
+
+/* NAVIGATION */
+function showSection(name, pillEl) {
+  if (!/^[a-z_]+$/.test(name)) return;
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('visible'));
+  const el = document.getElementById('sec-' + name);
+  if (el) el.classList.add('visible');
+  if (pillEl) {
+    document.querySelectorAll('.nav-pill').forEach(p => p.classList.remove('active'));
+    pillEl.classList.add('active');
+  }
+  closeSidebar();
+}
+
+function setSideActive(btn) {
+  document.querySelectorAll('.sidebar-item').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+/* WEBSOCKET */
+let lastConnectAttempt = 0;
+
+function connectWS() {
+  const now = Date.now();
+  if (now - lastConnectAttempt < 2000) {
+    showToast('⚠ Asteaptă 2 secunde între încercări!', true);
+    return;
+  }
+  lastConnectAttempt = now;
+
+  const ip = document.getElementById('ws-ip').value.trim();
+  const port = document.getElementById('ws-port').value.trim();
+
+  if (!isValidIP(ip)) {
+    showToast('⚠ IP invalid! Folosește formatul 192.168.x.x', true);
+    wsLog('[✗] IP invalid introdus.', 'err');
+    return;
+  }
+  if (!isValidPort(port)) {
+    showToast('⚠ Port invalid! (1–65535)', true);
+    wsLog('[✗] Port invalid introdus.', 'err');
+    return;
+  }
+
+  wsLog('[→] Se conectează la ws://' + ip + ':' + port + ' ...', 'info');
+
+  try {
+    if (state.ws) { state.ws.close(); state.ws = null; }
+    state.ws = new WebSocket('ws://' + ip + ':' + port);
+
+    state.ws.onopen = function() {
+      state.connected = true;
+      setConnStatus(true, ip);
+      wsLog('[✓] Conectat la IntelliGlass Mirror ws://' + ip + ':' + port, 'ok');
+      setText('net-ip', ip);
+      setText('net-url', 'http://' + ip + ':' + port);
+      setText('sidebar-ip', ip + ':' + port);
+      sendCommand({ type: 'get_status' });
+    };
+
+    state.ws.onmessage = function(evt) {
+      try {
+        const raw = evt.data;
+        if (typeof raw !== 'string' || raw.length > 65536) {
+          wsLog('[!] Mesaj prea mare sau invalid. Ignorat.', 'err');
+          return;
+        }
+        const data = JSON.parse(raw);
+        if (typeof data !== 'object' || data === null || Array.isArray(data)) {
+          wsLog('[!] Format mesaj neașteptat. Ignorat.', 'err');
+          return;
+        }
+        handleMessage(data);
+      } catch (e) {
+        wsLog('[←] (mesaj non-JSON ignorat)', 'info');
+      }
+    };
+
+    state.ws.onerror = function() {
+      wsLog('[✗] Eroare conexiune. Verifică IP-ul și că serverul rulează pe RPi.', 'err');
+    };
+
+    state.ws.onclose = function() {
+      state.connected = false;
+      setConnStatus(false);
+      wsLog('[✗] Conexiune închisă.', 'err');
+    };
+  } catch (e) {
+    wsLog('[✗] ' + sanitize(e.message), 'err');
+  }
+}
+
+function disconnectWS() {
+  if (state.ws) { state.ws.close(); state.ws = null; }
+  setConnStatus(false);
+  wsLog('[—] Deconectat manual.', 'info');
+}
+
+/* Trimitem comenzi ca JSON */
+function sendCommand(obj) {
+  if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+    const payload = JSON.stringify(obj);
+    state.ws.send(payload);
+    wsLog('[→] ' + payload, 'info');
+  } else {
+    wsLog('[!] Nu ești conectat la oglindă. Apasă Conectează.', 'err');
+  }
+}
+
+function handleMessage(data) {
+  wsLog('[←] tip: ' + sanitize(String(data.type || '?')), 'ok');
+
+  if (data.type === 'status') {
+    if (typeof data.brightness === 'number' && data.brightness >= 0 && data.brightness <= 100) {
+      const bv = Math.round(data.brightness);
+      const sl = document.getElementById('bright-slider');
+      if (sl) sl.value = bv;
+      setText('bright-label', bv + '%');
+      setText('bright-stat', bv + '%');
+    }
+    if (typeof data.clients === 'number') {
+      setText('net-clients', Math.max(0, Math.round(data.clients)));
+    }
+  }
+  if (data.type === 'weather') {
+    if (typeof data.temp === 'number') {
+      const t = Math.round(data.temp);
+      setText('mirror-temp-display', t + '°C');
+      setText('stat-temp', t + '°');
+    }
+    if (typeof data.desc === 'string') {
+      setText('mirror-weather-sub', sanitize(data.desc).substring(0, 80));
+    }
+  }
+}
+
+function wsLog(msg, cls) {
+  const log = document.getElementById('ws-log');
+  if (!log) return;
+  if (log.children.length > 400) {
+    log.removeChild(log.firstChild);
+    log.removeChild(log.firstChild);
+  }
+  const line = document.createElement('span');
+  if (cls) line.className = 'log-' + cls;
+  line.textContent = msg; // textContent, niciodată innerHTML
+  log.appendChild(line);
+  log.appendChild(document.createElement('br'));
+  log.scrollTop = log.scrollHeight;
+}
+
+function setConnStatus(on, ip) {
+  const dot = document.getElementById('conn-dot');
+  const lbl = document.getElementById('conn-label');
+  const stat = document.getElementById('stat-status');
+  if (on) {
+    dot.style.background = 'var(--success)';
+    lbl.textContent = 'Conectat · RPi4';
+    lbl.style.color = 'var(--success)';
+    stat.textContent = 'Online';
+    stat.style.color = 'var(--success)';
+  } else {
+    dot.style.background = '#f87171';
+    lbl.textContent = 'Deconectat';
+    lbl.style.color = '#f87171';
+    stat.textContent = 'Offline';
+    stat.style.color = '#f87171';
+  }
+}
+
+/* CLOCK */
+function updateClock() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2, '0');
+  const m = String(now.getMinutes()).padStart(2, '0');
+  setText('mirror-clock', h + ':' + m);
+
+  const days = ['Duminică','Luni','Marți','Miercuri','Joi','Vineri','Sâmbătă'];
+  const months = ['ianuarie','februarie','martie','aprilie','mai','iunie','iulie','august','septembrie','octombrie','noiembrie','decembrie'];
+  setText('mirror-date-label', days[now.getDay()] + ', ' + now.getDate() + ' ' + months[now.getMonth()] + ' ' + now.getFullYear());
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+function setBrightness(val) {
+  const n = Math.max(0, Math.min(100, parseInt(val) || 0));
+  setText('bright-label', n + '%');
+  setText('bright-stat', n + '%');
+  sendCommand({ type: 'brightness', value: n });
+}
+
+function toggleSwitch(el, key) {
+  if (!/^[a-z_]+$/.test(key)) return;
+  el.classList.toggle('on');
+  const on = el.classList.contains('on');
+  sendCommand({ type: 'toggle', key: key, value: on });
+  showToast((on ? '✓ Activat: ' : '✗ Dezactivat: ') + key.replace(/_/g, ' '));
+}
+
+function applyGreeting() {
+  const raw = document.getElementById('greeting-input').value;
+  const val = sanitize(raw).substring(0, 120) || 'Bun venit!';
+  setText('mirror-greeting-text', val);
+  state.config.greeting = val;
+  sendCommand({ type: 'set_greeting', text: val });
+  showToast('✓ Mesaj actualizat pe oglindă!');
+}
+
+function setGreeting(txt) {
+  const el = document.getElementById('greeting-input');
+  if (el) el.value = sanitize(txt);
+}
+
+function applyTicker() {
+  const raw = document.getElementById('custom-ticker').value;
+  const val = sanitize(raw).substring(0, 500);
+  if (val) {
+    setText('mirror-ticker', val + '   ');
+    sendCommand({ type: 'set_ticker', text: val });
+    showToast('✓ Ticker actualizat pe oglindă!');
+  }
+}
+
+function applyWeather() {
+  const city = getInput('weather-city').substring(0, 60) || 'Brașov';
+  const country = getInput('weather-country').substring(0, 4).toUpperCase() || 'RO';
+  const unitEl = document.getElementById('temp-unit');
+  const unit = (unitEl && unitEl.value === 'imperial') ? 'imperial' : 'metric';
+  setText('weather-city-label', city);
+  setText('stat-city', city + ', ' + country);
+  sendCommand({ type: 'set_weather', city, country, unit });
+  showToast('✓ Vreme actualizată pentru ' + city + '!');
+}
+
+function fetchWeatherPreview() {
+  showToast('↻ Se actualizează prognoza...');
+  sendCommand({ type: 'get_weather' });
+}
+
+function applyCalendar() {
+  const raw = document.getElementById('cal-url').value.trim();
+  if (raw && !raw.startsWith('http://') && !raw.startsWith('https://') && raw !== '') {
+    showToast('⚠ URL calendar invalid!', true);
+    return;
+  }
+  sendCommand({ type: 'set_calendar', url: sanitize(raw).substring(0, 300) });
+  showToast('✓ Calendar salvat!');
+}
+
+function applyLocale() {
+  const langEl = document.getElementById('set-lang');
+  const tfEl = document.getElementById('set-timeformat');
+  const allowedLangs = ['ro','en','de','hu'];
+  const lang = (langEl && allowedLangs.includes(langEl.value)) ? langEl.value : 'ro';
+  const tf = (tfEl && tfEl.value === '12') ? '12' : '24';
+  sendCommand({ type: 'set_locale', lang, timeformat: tf });
+  showToast('✓ Limbă și regiune salvate!');
+}
+
+function saveAPIKeys() {
+  const owm = document.getElementById('owm-key').value.trim();
+  const gcal = document.getElementById('gcal-key').value.trim();
+  const news = document.getElementById('news-key').value.trim();
+  if (owm && owm.length < 10) { showToast('⚠ Cheia OWM pare prea scurtă!', true); return; }
+  sendCommand({
+    type: 'set_apikeys',
+    owm: owm ? '***set***' : '',
+    gcal: gcal ? '***set***' : '',
+    news: news ? '***set***' : ''
+  });
+  showToast('🔑 Chei API salvate pe RPi!');
+}
+
+function applyPosition() {
+  const widgetEl = document.getElementById('widget-selector');
+  const widget = widgetEl ? sanitize(widgetEl.value).substring(0, 30) : '';
+  const selected = document.querySelector('.pos-cell.selected');
+  const pos = selected ? sanitize(selected.dataset.poskey || '') : 'center';
+  sendCommand({ type: 'set_position', widget, position: pos });
+  showToast('✓ Poziție salvată: ' + widget);
+}
+
+function applyStyle() {
+  const widget = sanitize(document.getElementById('widget-selector')?.value || '').substring(0, 30);
+  const sizeEl = document.getElementById('font-size');
+  const opEl = document.getElementById('opacity-val');
+  const colorEl = document.getElementById('widget-color');
+  const size = Math.max(12, Math.min(120, parseInt(sizeEl?.value) || 48));
+  const opacity = Math.max(10, Math.min(100, parseInt(opEl?.value) || 85));
+  const rawColor = colorEl ? colorEl.value : 'F7ECE1';
+  const color = /^[0-9A-Fa-f]{6}$/.test(rawColor) ? rawColor : 'F7ECE1';
+  sendCommand({ type: 'set_style', widget, size, opacity, color });
+  showToast('✓ Stil aplicat pe oglindă!');
+}
+
+function selectPos(cell, key, label) {
+  document.querySelectorAll('.pos-cell').forEach(c => c.classList.remove('selected'));
+  cell.classList.add('selected');
+  cell.dataset.poskey = key;
+  setText('pos-label', label + ' selectat');
+}
+
+function updatePosLabel() {}
+
+function confirmReset() {
+  if (confirm((translations[currentLang] || translations.ro).confirm_reset)) {
+    sendCommand({ type: 'factory_reset' });
+    showToast('⚠ Reset inițiat!');
+  }
+}
+
+/* i18n */
+const translations = {
+  ro: {
+    nav_dashboard: 'Dashboard', nav_layout: 'Layout', nav_widgets: 'Widget-uri', nav_settings: 'Setări',
+    conn_disconnected: 'Deconectat', conn_connected: 'Conectat · RPi4',
+    side_mirror: 'Oglindiță', side_customize: 'Personalizare', side_system: 'Sistem',
+    side_overview: 'Prezentare', side_layout: 'Aranjament', side_widgets: 'Widget-uri',
+    side_weather: 'Vreme', side_news: 'Știri', side_calendar: 'Calendar',
+    side_network: 'Rețea / Wi-Fi', side_settings: 'Setări',
+    dash_greeting: 'Bun venit! 👋', dash_sub: 'Oglinda ta smart este monitorizată în timp real.',
+    stat_status_lbl: 'Status RPi', stat_temp_lbl: 'Temperatură', stat_widgets_lbl: 'Widget-uri Active',
+    stat_bright_lbl: 'Luminozitate', stat_on_mirror: 'Pe oglindă', stat_adjustable: 'Reglabilă',
+    card_preview: 'Previzualizare Oglindă', card_quickcontrol: 'Control Rapid',
+    mirror_loading: 'Se încarcă...',
+    lbl_brightness: 'Luminozitate Ecran',
+    tog_nightmode: 'Modul Noapte', tog_nightmode_sub: 'Reduce luminozitatea după 22:00',
+    tog_clock: 'Afișare Ceas', tog_clock_sub: 'Ora digitală pe oglindă',
+    tog_ticker: 'Ticker Știri', tog_ticker_sub: 'Bandă derulantă în josul oglinzii',
+    tog_weather: 'Afișare Vreme', tog_weather_sub: 'Prognoză meteo pe oglindă',
+    tog_calendar: 'Afișare Calendar', tog_calendar_sub: 'Evenimente Google Calendar',
+    btn_apply_mirror: 'Aplică pe Oglindă', btn_reload: 'Reîncarcă',
+    card_ws: 'Conexiune WebSocket cu Raspberry Pi',
+    lbl_ip: 'IP Raspberry Pi', lbl_port: 'Port WebSocket',
+    btn_connect: 'Conectează', btn_disconnect: 'Deconectează',
+    ws_hint: 'Introdu IP-ul Raspberry Pi și apasă Conectează.',
+    page_layout: 'Aranjament Widget-uri', page_layout_sub: 'Selectează poziția și stilizarea fiecărui widget pe suprafața oglinzii.',
+    card_position: 'Poziție Widget', lbl_widget_select: 'Widget de configurat',
+    wopt_clock: '🕐 Ceas Digital', wopt_weather: '☁ Vreme', wopt_calendar: '📅 Calendar',
+    wopt_ticker: '📰 Ticker Știri', wopt_greeting: '💬 Mesaj de Bun Venit', wopt_sysinfo: '📊 Statistici Sistem',
+    btn_save_pos: 'Salvează Poziția', card_style: 'Stilizare Widget',
+    lbl_font: 'Font Afișaj', lbl_fontsize: 'Mărime Font (px)', lbl_opacity: 'Opacitate (%)', lbl_color: 'Culoare Text',
+    col_warmwhite: 'Alb Cald #F7ECE1', col_purewhite: 'Alb Pur #FFFFFF',
+    tog_fadein: 'Animație Fade-in', tog_fadein_sub: 'La pornire și refresh',
+    tog_glow: 'Efect Glow', tog_glow_sub: 'Luminos subtil în jurul textului',
+    btn_apply_style: 'Aplică Stil',
+    page_widgets: 'Gestionare Widget-uri', page_widgets_sub: 'Activează, dezactivează și configurează modulele afișate pe oglindă.',
+    wdesc_clock: 'Oră și dată în timp real. Actualizare la 1 secundă.',
+    wdesc_weather: 'Prognoză 5 zile, temperatură curentă, vânt.',
+    wdesc_calendar: 'Afișează evenimentele din calendarul Google.',
+    wdesc_ticker: 'Bandă derulantă cu știri RSS sau text custom.',
+    wdesc_greeting: 'Text personalizat în centrul oglinzii.',
+    wdesc_sysinfo: 'CPU, RAM, temperatură procesor.',
+    badge_active: 'Activ', badge_inactive: 'Inactiv',
+    btn_configure: 'Configurează', btn_activate: 'Activează',
+    page_weather: 'Configurare Vreme', page_weather_sub: 'Setează locația și modul de afișare al prognozei meteo pe oglindă.',
+    card_location: 'Locație & Setări', lbl_city: 'Orașul tău', lbl_country: 'Cod țară (ISO)',
+    lbl_tempunit: 'Unitate temperatură', opt_celsius: 'Celsius (°C)', opt_fahrenheit: 'Fahrenheit (°F)',
+    lbl_forecastdays: 'Zile prognoză afișate', opt_3days: '3 zile', opt_5days: '5 zile', opt_7days: '7 zile',
+    tog_wind: 'Afișare Vânt', tog_humidity: 'Afișare Umiditate', tog_autoupdate: 'Actualizare automată (15 min)',
+    btn_apply_weather: 'Aplică Setări Vreme', btn_refresh_weather: 'Actualizează Previzualizare',
+    page_news: 'Configurare Știri', page_news_sub: 'Personalizează sursa și conținutul banderolei derulante de pe oglindă.',
+    card_rss: 'Surse RSS', lbl_rss_main: 'Feed RSS Principal', lbl_rss_secondary: 'Feed RSS Secundar (opțional)',
+    lbl_news_cat: 'Categorie Știri', opt_all: 'Toate', opt_politics: 'Politică', opt_sport: 'Sport',
+    opt_tech: 'Tech', opt_economy: 'Economie',
+    lbl_ticker_speed: 'Viteză ticker', opt_slow: 'Lentă', opt_normal: 'Normală', opt_fast: 'Rapidă',
+    card_ticker_manual: 'Ticker Manual (înlocuiește RSS)', lbl_ticker_custom: 'Text personalizat pentru banderoló',
+    btn_apply_ticker: 'Aplică Ticker pe Oglindă', btn_clear: 'Golește',
+    page_calendar: 'Calendar & Mesaj', page_calendar_sub: 'Configurează Google Calendar și mesajul personal afișat pe oglindă.',
+    card_cal_settings: 'Setări Calendar', cal_device_sub: 'Configurează URL-ul CalDAV sau integrarea Google',
+    badge_notconnected: 'Neconectat', lbl_cal_url: 'URL Calendar (iCal / CalDAV)',
+    lbl_events_shown: 'Evenimente afișate', lbl_cal_range: 'Interval',
+    opt_today: 'Azi', opt_today_tomorrow: 'Azi + Mâine', opt_this_week: 'Săptămâna asta',
+    btn_save_calendar: 'Salvează Calendar', card_greeting: 'Mesaj de Bun Venit',
+    lbl_greeting: 'Mesajul afișat în centrul oglinzii',
+    tog_timegreet: 'Salut bazat pe oră', tog_timegreet_sub: 'Dimineața / Ziua / Seara',
+    tog_username: 'Afișare nume utilizator', tog_username_sub: 'Recunoaștere facială necesară',
+    btn_apply_greeting: 'Aplică Mesajul',
+    page_network: 'Rețea & Conectivitate', page_network_sub: 'Gestionează conexiunea Wi-Fi și dispozitivele conectate la oglinda smart.',
+    card_server: 'Server Web — Raspberry Pi 4', card_devices: 'Dispozitive Conectate',
+    card_wifi: 'Setări Wi-Fi Oglindă', lbl_ssid: 'Nume Rețea (SSID)', lbl_wifipass: 'Parolă Wi-Fi',
+    btn_save_wifi: 'Salvează & Aplică Wi-Fi',
+    page_settings: 'Setări Aplicație', page_settings_sub: 'Configurări globale pentru IntelliGlass, oglinda smart și integrările externe.',
+    card_lang: 'Limbă & Regiune', lbl_lang: 'Limbă interfață', lbl_dateformat: 'Format dată oglindă',
+    lbl_timeformat: 'Format oră', lbl_timezone: 'Fus orar', btn_save_lang: 'Salvează Limbă & Regiune',
+    card_apikeys: 'API Keys', lbl_owm: 'OpenWeatherMap API Key', lbl_gcal: 'Google Calendar API Key',
+    lbl_newsapi: 'NewsAPI Key (opțional)', btn_save_apikeys: 'Salvează Cheile API',
+    card_security: 'Securitate & Access', tog_password: 'Parolă acces interfață web',
+    tog_password_sub: 'Protejează panoul de control', tog_localonly: 'Numai rețea locală',
+    tog_localonly_sub: 'Blochează accesul din internet', tog_log: 'Log activitate utilizatori',
+    tog_log_sub: 'Salvează acțiunile pe oglindă', tog_autoupdate2: 'Actualizări automate',
+    tog_autoupdate2_sub: 'Actualizare MagicMirror²', card_system: 'Control Sistem RPi4',
+    btn_restart_mm: 'Repornire MM²', btn_reboot: 'Repornire RPi', btn_shutdown: 'Oprire RPi',
+    btn_factory_reset: 'Reset Fabrică', card_about: 'Despre IntelliGlass',
+    sub_rpi4: 'Raspberry Pi 4',
+    wname_clock: 'Ceas Digital',
+    wname_weather: 'Vreme',
+    wname_calendar: 'Google Calendar',
+    wname_ticker: 'Ticker Știri',
+    wname_greeting: 'Mesaj Bun Venit',
+    info_weather_api: 'Datele meteo sunt preluate via API OpenWeatherMap. Configurează cheia API în Setări → API Keys.',
+    info_network_hint: 'Conectează-te din orice browser în aceeași rețea Wi-Fi la',
+    info_wifi_warning: 'Modificarea credențialelor Wi-Fi va reporni modulul wireless. Verificați datele înainte de salvare.',
+    info_apikeys: 'Cheile API sunt stocate criptat pe Raspberry Pi și nu sunt transmise în rețea.',
+    about_version: 'Versiune',
+    about_hardware: 'Hardware',
+    about_framework: 'Framework Oglindă',
+    about_project: 'Proiect',
+    about_protocol: 'Protocol comunicare',
+    net_ip_label: 'IP Oglindă',
+    net_port_label: 'Port',
+    net_protocol_label: 'Protocol',
+    net_clients_label: 'Clienți activi',
+    net_no_devices: 'Niciun dispozitiv conectat. Conectează oglinda pentru a vedea clienții activi.',
+    suggest1: 'Bun venit acasă!',
+    suggest2: 'Zi bună!',
+    suggest3: 'Have a great day!',
+    toast_applied: '✓ Modificări trimise la oglindă!', toast_reload: '↺ Oglinda reîncarcă...',
+    toast_lang: '✓ Limbă schimbată!', toast_wifi: '📶 Configurare Wi-Fi trimisă la RPi!',
+    toast_widget_active: '✓ Widget activat!', confirm_reset: 'Ești sigur că vrei să resetezi oglinda la setările implicite? Toate configurările vor fi șterse.',
+  },
+  en: {
+    nav_dashboard: 'Dashboard', nav_layout: 'Layout', nav_widgets: 'Widgets', nav_settings: 'Settings',
+    conn_disconnected: 'Disconnected', conn_connected: 'Connected · RPi4',
+    side_mirror: 'Mirror', side_customize: 'Customize', side_system: 'System',
+    side_overview: 'Overview', side_layout: 'Layout', side_widgets: 'Widgets',
+    side_weather: 'Weather', side_news: 'News', side_calendar: 'Calendar',
+    side_network: 'Network / Wi-Fi', side_settings: 'Settings',
+    dash_greeting: 'Welcome! 👋', dash_sub: 'Your smart mirror is being monitored in real time.',
+    stat_status_lbl: 'RPi Status', stat_temp_lbl: 'Temperature', stat_widgets_lbl: 'Active Widgets',
+    stat_bright_lbl: 'Brightness', stat_on_mirror: 'On mirror', stat_adjustable: 'Adjustable',
+    card_preview: 'Mirror Preview', card_quickcontrol: 'Quick Controls',
+    mirror_loading: 'Loading...',
+    lbl_brightness: 'Screen Brightness',
+    tog_nightmode: 'Night Mode', tog_nightmode_sub: 'Reduces brightness after 10 PM',
+    tog_clock: 'Show Clock', tog_clock_sub: 'Digital time on mirror',
+    tog_ticker: 'News Ticker', tog_ticker_sub: 'Scrolling banner at the bottom',
+    tog_weather: 'Show Weather', tog_weather_sub: 'Weather forecast on mirror',
+    tog_calendar: 'Show Calendar', tog_calendar_sub: 'Google Calendar events',
+    btn_apply_mirror: 'Apply to Mirror', btn_reload: 'Reload',
+    card_ws: 'WebSocket Connection to Raspberry Pi',
+    lbl_ip: 'Raspberry Pi IP', lbl_port: 'WebSocket Port',
+    btn_connect: 'Connect', btn_disconnect: 'Disconnect',
+    ws_hint: 'Enter the Raspberry Pi IP and press Connect.',
+    page_layout: 'Widget Layout', page_layout_sub: 'Select the position and style of each widget on the mirror surface.',
+    card_position: 'Widget Position', lbl_widget_select: 'Widget to configure',
+    wopt_clock: '🕐 Digital Clock', wopt_weather: '☁ Weather', wopt_calendar: '📅 Calendar',
+    wopt_ticker: '📰 News Ticker', wopt_greeting: '💬 Welcome Message', wopt_sysinfo: '📊 System Stats',
+    btn_save_pos: 'Save Position', card_style: 'Widget Style',
+    lbl_font: 'Display Font', lbl_fontsize: 'Font Size (px)', lbl_opacity: 'Opacity (%)', lbl_color: 'Text Color',
+    col_warmwhite: 'Warm White #F7ECE1', col_purewhite: 'Pure White #FFFFFF',
+    tog_fadein: 'Fade-in Animation', tog_fadein_sub: 'On startup and refresh',
+    tog_glow: 'Glow Effect', tog_glow_sub: 'Subtle glow around text',
+    btn_apply_style: 'Apply Style',
+    page_widgets: 'Manage Widgets', page_widgets_sub: 'Enable, disable and configure modules displayed on the mirror.',
+    wdesc_clock: 'Real-time hour and date. Updates every second.',
+    wdesc_weather: '5-day forecast, current temperature, wind.',
+    wdesc_calendar: 'Displays events from Google Calendar.',
+    wdesc_ticker: 'Scrolling banner with RSS news or custom text.',
+    wdesc_greeting: 'Custom text in the center of the mirror.',
+    wdesc_sysinfo: 'CPU, RAM, processor temperature.',
+    badge_active: 'Active', badge_inactive: 'Inactive',
+    btn_configure: 'Configure', btn_activate: 'Activate',
+    page_weather: 'Weather Settings', page_weather_sub: 'Set the location and display mode for the weather forecast.',
+    card_location: 'Location & Settings', lbl_city: 'Your city', lbl_country: 'Country code (ISO)',
+    lbl_tempunit: 'Temperature unit', opt_celsius: 'Celsius (°C)', opt_fahrenheit: 'Fahrenheit (°F)',
+    lbl_forecastdays: 'Forecast days shown', opt_3days: '3 days', opt_5days: '5 days', opt_7days: '7 days',
+    tog_wind: 'Show Wind', tog_humidity: 'Show Humidity', tog_autoupdate: 'Auto update (15 min)',
+    btn_apply_weather: 'Apply Weather Settings', btn_refresh_weather: 'Refresh Preview',
+    page_news: 'News Settings', page_news_sub: 'Customize the source and content of the scrolling banner.',
+    card_rss: 'RSS Sources', lbl_rss_main: 'Primary RSS Feed', lbl_rss_secondary: 'Secondary RSS Feed (optional)',
+    lbl_news_cat: 'News Category', opt_all: 'All', opt_politics: 'Politics', opt_sport: 'Sport',
+    opt_tech: 'Tech', opt_economy: 'Economy',
+    lbl_ticker_speed: 'Ticker speed', opt_slow: 'Slow', opt_normal: 'Normal', opt_fast: 'Fast',
+    card_ticker_manual: 'Manual Ticker (replaces RSS)', lbl_ticker_custom: 'Custom text for the banner',
+    btn_apply_ticker: 'Apply Ticker to Mirror', btn_clear: 'Clear',
+    page_calendar: 'Calendar & Message', page_calendar_sub: 'Configure Google Calendar and the personal message shown on the mirror.',
+    card_cal_settings: 'Calendar Settings', cal_device_sub: 'Configure the CalDAV URL or Google integration',
+    badge_notconnected: 'Not connected', lbl_cal_url: 'Calendar URL (iCal / CalDAV)',
+    lbl_events_shown: 'Events shown', lbl_cal_range: 'Range',
+    opt_today: 'Today', opt_today_tomorrow: 'Today + Tomorrow', opt_this_week: 'This week',
+    btn_save_calendar: 'Save Calendar', card_greeting: 'Welcome Message',
+    lbl_greeting: 'Message shown in the center of the mirror',
+    tog_timegreet: 'Time-based greeting', tog_timegreet_sub: 'Morning / Afternoon / Evening',
+    tog_username: 'Show username', tog_username_sub: 'Face recognition required',
+    btn_apply_greeting: 'Apply Message',
+    page_network: 'Network & Connectivity', page_network_sub: 'Manage Wi-Fi connection and devices connected to the smart mirror.',
+    card_server: 'Web Server — Raspberry Pi 4', card_devices: 'Connected Devices',
+    card_wifi: 'Mirror Wi-Fi Settings', lbl_ssid: 'Network Name (SSID)', lbl_wifipass: 'Wi-Fi Password',
+    btn_save_wifi: 'Save & Apply Wi-Fi',
+    page_settings: 'App Settings', page_settings_sub: 'Global configuration for IntelliGlass, the smart mirror and external integrations.',
+    card_lang: 'Language & Region', lbl_lang: 'Interface language', lbl_dateformat: 'Mirror date format',
+    lbl_timeformat: 'Time format', lbl_timezone: 'Time zone', btn_save_lang: 'Save Language & Region',
+    card_apikeys: 'API Keys', lbl_owm: 'OpenWeatherMap API Key', lbl_gcal: 'Google Calendar API Key',
+    lbl_newsapi: 'NewsAPI Key (optional)', btn_save_apikeys: 'Save API Keys',
+    card_security: 'Security & Access', tog_password: 'Web interface password',
+    tog_password_sub: 'Protects the control panel', tog_localonly: 'Local network only',
+    tog_localonly_sub: 'Blocks access from the internet', tog_log: 'Activity log',
+    tog_log_sub: 'Saves user actions on the mirror', tog_autoupdate2: 'Auto updates',
+    tog_autoupdate2_sub: 'MagicMirror² update', card_system: 'RPi4 System Control',
+    btn_restart_mm: 'Restart MM²', btn_reboot: 'Restart RPi', btn_shutdown: 'Shutdown RPi',
+    btn_factory_reset: 'Factory Reset', card_about: 'About IntelliGlass',
+    sub_rpi4: 'Raspberry Pi 4',
+    wname_clock: 'Digital Clock',
+    wname_weather: 'Weather',
+    wname_calendar: 'Google Calendar',
+    wname_ticker: 'News Ticker',
+    wname_greeting: 'Welcome Message',
+    
+    info_weather_api: 'Weather data is fetched via OpenWeatherMap API. Configure the API key in Settings → API Keys.',
+    info_network_hint: 'Connect from any browser on the same Wi-Fi network at',
+    info_wifi_warning: 'Changing Wi-Fi credentials will restart the wireless module. Verify data before saving.',
+    info_apikeys: 'API keys are stored encrypted on the Raspberry Pi and are not transmitted over the network.',
+    about_version: 'Version',
+    about_hardware: 'Hardware',
+    about_framework: 'Mirror Framework',
+    about_project: 'Project',
+    about_protocol: 'Communication protocol',
+    net_ip_label: 'Mirror IP',
+    net_port_label: 'Port',
+    net_protocol_label: 'Protocol',
+    net_clients_label: 'Active clients',
+    net_no_devices: 'No devices connected. Connect the mirror to see active clients.',
+    suggest1: 'Welcome home!',
+    suggest2: 'Have a nice day!',
+    suggest3: 'Have a great day!',
+    toast_applied: '✓ Changes sent to mirror!', toast_reload: '↺ Mirror reloading...',
+    toast_lang: '✓ Language changed!', toast_wifi: '📶 Wi-Fi config sent to RPi!',
+    toast_widget_active: '✓ Widget activated!', confirm_reset: 'Are you sure you want to reset the mirror to factory settings? All configurations will be deleted.',
+  },
+  de: {
+    nav_dashboard: 'Dashboard', nav_layout: 'Layout', nav_widgets: 'Widgets', nav_settings: 'Einstellungen',
+    conn_disconnected: 'Getrennt', conn_connected: 'Verbunden · RPi4',
+    side_mirror: 'Spiegel', side_customize: 'Anpassung', side_system: 'System',
+    side_overview: 'Übersicht', side_layout: 'Layout', side_widgets: 'Widgets',
+    side_weather: 'Wetter', side_news: 'Nachrichten', side_calendar: 'Kalender',
+    side_network: 'Netzwerk / WLAN', side_settings: 'Einstellungen',
+    dash_greeting: 'Willkommen! 👋', dash_sub: 'Dein Smart-Spiegel wird in Echtzeit überwacht.',
+    stat_bright_lbl: 'Helligkeit', stat_on_mirror: 'Auf Spiegel', stat_adjustable: 'Einstellbar',
+    card_preview: 'Spiegelvorschau', card_quickcontrol: 'Schnellsteuerung',
+    mirror_loading: 'Wird geladen...',
+    lbl_brightness: 'Bildschirmhelligkeit',
+    tog_nightmode: 'Nachtmodus', tog_nightmode_sub: 'Helligkeit nach 22 Uhr reduzieren',
+    tog_clock: 'Uhr anzeigen', tog_clock_sub: 'Digitaluhr auf Spiegel',
+    tog_ticker: 'Nachrichten-Ticker', tog_ticker_sub: 'Laufband unten am Spiegel',
+    tog_weather: 'Wetter anzeigen', tog_weather_sub: 'Wettervorhersage auf Spiegel',
+    tog_calendar: 'Kalender anzeigen', tog_calendar_sub: 'Google Kalender Ereignisse',
+    btn_apply_mirror: 'Auf Spiegel anwenden', btn_reload: 'Neu laden',
+    card_ws: 'WebSocket-Verbindung zum Raspberry Pi',
+    lbl_ip: 'Raspberry Pi IP', lbl_port: 'WebSocket-Port',
+    btn_connect: 'Verbinden', btn_disconnect: 'Trennen',
+    ws_hint: 'Raspberry Pi IP eingeben und auf Verbinden drücken.',
+    page_layout: 'Widget-Layout', page_layout_sub: 'Position und Stil jedes Widgets auf der Spiegelfläche auswählen.',
+    card_position: 'Widget-Position', lbl_widget_select: 'Zu konfigurierendes Widget',
+    wopt_clock: '🕐 Digitaluhr', wopt_weather: '☁ Wetter', wopt_calendar: '📅 Kalender',
+    wopt_ticker: '📰 Nachrichten-Ticker', wopt_greeting: '💬 Willkommensnachricht', wopt_sysinfo: '📊 Systeminfo',
+    btn_save_pos: 'Position speichern', card_style: 'Widget-Stil',
+    lbl_font: 'Schriftart', lbl_fontsize: 'Schriftgröße (px)', lbl_opacity: 'Deckkraft (%)', lbl_color: 'Textfarbe',
+    col_warmwhite: 'Warmweiß #F7ECE1', col_purewhite: 'Reinweiß #FFFFFF',
+    tog_fadein: 'Einblend-Animation', tog_fadein_sub: 'Beim Start und Aktualisieren',
+    tog_glow: 'Glow-Effekt', tog_glow_sub: 'Subtiles Leuchten um den Text',
+    btn_apply_style: 'Stil anwenden',
+    page_widgets: 'Widgets verwalten', page_widgets_sub: 'Module auf dem Spiegel aktivieren, deaktivieren und konfigurieren.',
+    wdesc_clock: 'Echtzeit-Uhrzeit und Datum. Aktualisierung jede Sekunde.',
+    wdesc_weather: '5-Tage-Vorhersage, aktuelle Temperatur, Wind.',
+    wdesc_calendar: 'Zeigt Ereignisse aus Google Kalender an.',
+    wdesc_ticker: 'Laufband mit RSS-Nachrichten oder benutzerdefiniertem Text.',
+    wdesc_greeting: 'Benutzerdefinierter Text in der Spiegelmitte.',
+    wdesc_sysinfo: 'CPU, RAM, Prozessortemperatur.',
+    badge_active: 'Aktiv', badge_inactive: 'Inaktiv',
+    btn_configure: 'Konfigurieren', btn_activate: 'Aktivieren',
+    page_weather: 'Wettereinstellungen', page_weather_sub: 'Standort und Anzeigemodus für die Wettervorhersage festlegen.',
+    card_location: 'Standort & Einstellungen', lbl_city: 'Deine Stadt', lbl_country: 'Ländercode (ISO)',
+    lbl_tempunit: 'Temperatureinheit', opt_celsius: 'Celsius (°C)', opt_fahrenheit: 'Fahrenheit (°F)',
+    lbl_forecastdays: 'Angezeigte Vorhersagetage', opt_3days: '3 Tage', opt_5days: '5 Tage', opt_7days: '7 Tage',
+    tog_wind: 'Wind anzeigen', tog_humidity: 'Luftfeuchtigkeit anzeigen', tog_autoupdate: 'Auto-Aktualisierung (15 Min)',
+    btn_apply_weather: 'Wettereinstellungen anwenden', btn_refresh_weather: 'Vorschau aktualisieren',
+    page_news: 'Nachrichteneinstellungen', page_news_sub: 'Quelle und Inhalt des Laufbands anpassen.',
+    card_rss: 'RSS-Quellen', lbl_rss_main: 'Primärer RSS-Feed', lbl_rss_secondary: 'Sekundärer RSS-Feed (optional)',
+    lbl_news_cat: 'Nachrichtenkategorie', opt_all: 'Alle', opt_politics: 'Politik', opt_sport: 'Sport',
+    opt_tech: 'Tech', opt_economy: 'Wirtschaft',
+    lbl_ticker_speed: 'Ticker-Geschwindigkeit', opt_slow: 'Langsam', opt_normal: 'Normal', opt_fast: 'Schnell',
+    card_ticker_manual: 'Manueller Ticker (ersetzt RSS)', lbl_ticker_custom: 'Benutzerdefinierter Text für das Banner',
+    btn_apply_ticker: 'Ticker auf Spiegel anwenden', btn_clear: 'Leeren',
+    page_calendar: 'Kalender & Nachricht', page_calendar_sub: 'Google Kalender und persönliche Nachricht auf dem Spiegel konfigurieren.',
+    card_cal_settings: 'Kalendereinstellungen', cal_device_sub: 'CalDAV-URL oder Google-Integration konfigurieren',
+    badge_notconnected: 'Nicht verbunden', lbl_cal_url: 'Kalender-URL (iCal / CalDAV)',
+    lbl_events_shown: 'Angezeigte Ereignisse', lbl_cal_range: 'Zeitraum',
+    opt_today: 'Heute', opt_today_tomorrow: 'Heute + Morgen', opt_this_week: 'Diese Woche',
+    btn_save_calendar: 'Kalender speichern', card_greeting: 'Willkommensnachricht',
+    lbl_greeting: 'Nachricht in der Spiegelmitte angezeigt',
+    tog_timegreet: 'Zeitbasierter Gruß', tog_timegreet_sub: 'Morgens / Mittags / Abends',
+    tog_username: 'Benutzername anzeigen', tog_username_sub: 'Gesichtserkennung erforderlich',
+    btn_apply_greeting: 'Nachricht anwenden',
+    page_network: 'Netzwerk & Konnektivität', page_network_sub: 'WLAN-Verbindung und mit dem Smart-Spiegel verbundene Geräte verwalten.',
+    card_server: 'Webserver — Raspberry Pi 4', card_devices: 'Verbundene Geräte',
+    card_wifi: 'Spiegel WLAN-Einstellungen', lbl_ssid: 'Netzwerkname (SSID)', lbl_wifipass: 'WLAN-Passwort',
+    btn_save_wifi: 'Speichern & WLAN anwenden',
+    page_settings: 'App-Einstellungen', page_settings_sub: 'Globale Konfiguration für IntelliGlass, den Smart-Spiegel und externe Integrationen.',
+    card_lang: 'Sprache & Region', lbl_lang: 'Oberflächensprache', lbl_dateformat: 'Spiegeldatumsformat',
+    lbl_timeformat: 'Zeitformat', lbl_timezone: 'Zeitzone', btn_save_lang: 'Sprache & Region speichern',
+    card_apikeys: 'API-Schlüssel', lbl_owm: 'OpenWeatherMap API-Schlüssel', lbl_gcal: 'Google Kalender API-Schlüssel',
+    lbl_newsapi: 'NewsAPI-Schlüssel (optional)', btn_save_apikeys: 'API-Schlüssel speichern',
+    card_security: 'Sicherheit & Zugang', tog_password: 'Webinterface-Passwort',
+    tog_password_sub: 'Schützt das Steuerfeld', tog_localonly: 'Nur lokales Netzwerk',
+    tog_localonly_sub: 'Sperrt den Zugang aus dem Internet', tog_log: 'Aktivitätsprotokoll',
+    tog_log_sub: 'Speichert Benutzeraktionen am Spiegel', tog_autoupdate2: 'Automatische Updates',
+    tog_autoupdate2_sub: 'MagicMirror²-Update', card_system: 'RPi4 Systemsteuerung',
+    btn_restart_mm: 'MM² neu starten', btn_reboot: 'RPi neu starten', btn_shutdown: 'RPi herunterfahren',
+    btn_factory_reset: 'Werksreset', card_about: 'Über IntelliGlass',
+    sub_rpi4: 'Raspberry Pi 4',
+    wname_clock: 'Digitaluhr',
+    wname_weather: 'Wetter',
+    wname_calendar: 'Google Kalender',
+    wname_ticker: 'Nachrichten-Ticker',
+    wname_greeting: 'Willkommensnachricht',
+    wname_sysinfo: 'RPi Statistiken',
+    info_weather_api: 'Wetterdaten werden über OpenWeatherMap API abgerufen. API-Schlüssel in Einstellungen → API Keys eingeben.',
+    info_network_hint: 'Verbinde dich mit jedem Browser im selben WLAN-Netzwerk unter',
+    info_wifi_warning: 'Das Ändern der WLAN-Zugangsdaten startet das Wireless-Modul neu. Daten vor dem Speichern prüfen.',
+    info_apikeys: 'API-Schlüssel werden verschlüsselt auf dem Raspberry Pi gespeichert und nicht übertragen.',
+    about_version: 'Version',
+    about_hardware: 'Hardware',
+    about_framework: 'Spiegel-Framework',
+    about_project: 'Projekt',
+    about_protocol: 'Kommunikationsprotokoll',
+    net_ip_label: 'Spiegel IP',
+    net_port_label: 'Port',
+    net_protocol_label: 'Protokoll',
+    net_clients_label: 'Aktive Clients',
+    net_no_devices: 'Keine Geräte verbunden. Spiegel verbinden um aktive Clients zu sehen.',
+    suggest1: 'Willkommen zu Hause!',
+    suggest2: 'Schönen Tag!',
+    suggest3: 'Have a great day!',
+    toast_applied: '✓ Änderungen an Spiegel gesendet!', toast_reload: '↺ Spiegel lädt neu...',
+    toast_lang: '✓ Sprache geändert!', toast_wifi: '📶 WLAN-Konfiguration an RPi gesendet!',
+    toast_widget_active: '✓ Widget aktiviert!', confirm_reset: 'Möchten Sie den Spiegel wirklich auf die Werkseinstellungen zurücksetzen? Alle Konfigurationen werden gelöscht.',
+  },
+  hu: {
+    nav_dashboard: 'Vezérlőpult', nav_layout: 'Elrendezés', nav_widgets: 'Widgetek', nav_settings: 'Beállítások',
+    conn_disconnected: 'Leválasztva', conn_connected: 'Csatlakozva · RPi4',
+    side_mirror: 'Tükör', side_customize: 'Testreszabás', side_system: 'Rendszer',
+    side_overview: 'Áttekintés', side_layout: 'Elrendezés', side_widgets: 'Widgetek',
+    side_weather: 'Időjárás', side_news: 'Hírek', side_calendar: 'Naptár',
+    side_network: 'Hálózat / Wi-Fi', side_settings: 'Beállítások',
+    dash_greeting: 'Üdvözlöm! 👋', dash_sub: 'Az okostükröd valós időben figyelhető.',
+    stat_status_lbl: 'RPi Állapot', stat_temp_lbl: 'Hőmérséklet', stat_widgets_lbl: 'Aktív widgetek',
+    stat_bright_lbl: 'Fényerő', stat_on_mirror: 'A tükrön', stat_adjustable: 'Állítható',
+    card_preview: 'Tükör előnézet', card_quickcontrol: 'Gyors vezérlés',
+    mirror_loading: 'Betöltés...',
+    lbl_brightness: 'Képernyő fényereje',
+    tog_nightmode: 'Éjszakai mód', tog_nightmode_sub: 'Fényerő csökkentése 22:00 után',
+    tog_clock: 'Óra megjelenítése', tog_clock_sub: 'Digitális óra a tükrön',
+    tog_ticker: 'Hírek tickere', tog_ticker_sub: 'Görgetősáv a tükör alján',
+    tog_weather: 'Időjárás megjelenítése', tog_weather_sub: 'Időjárás-előrejelzés a tükrön',
+    tog_calendar: 'Naptár megjelenítése', tog_calendar_sub: 'Google Naptár eseményei',
+    btn_apply_mirror: 'Alkalmazás a tükörre', btn_reload: 'Újratöltés',
+    card_ws: 'WebSocket-kapcsolat a Raspberry Pi-hez',
+    lbl_ip: 'Raspberry Pi IP', lbl_port: 'WebSocket port',
+    btn_connect: 'Csatlakozás', btn_disconnect: 'Leválasztás',
+    ws_hint: 'Adja meg a Raspberry Pi IP-jét, majd kattintson a Csatlakozás gombra.',
+    page_layout: 'Widget-elrendezés', page_layout_sub: 'Válassza ki az egyes widgetek pozícióját és stílusát a tükör felületén.',
+    card_position: 'Widget pozíciója', lbl_widget_select: 'Konfigurálandó widget',
+    wopt_clock: '🕐 Digitális óra', wopt_weather: '☁ Időjárás', wopt_calendar: '📅 Naptár',
+    wopt_ticker: '📰 Hírek tickere', wopt_greeting: '💬 Üdvözlő üzenet', wopt_sysinfo: '📊 Rendszeradatok',
+    btn_save_pos: 'Pozíció mentése', card_style: 'Widget stílusa',
+    lbl_font: 'Megjelenítési betűtípus', lbl_fontsize: 'Betűméret (px)', lbl_opacity: 'Átlátszatlanság (%)', lbl_color: 'Szöveg színe',
+    col_warmwhite: 'Meleg fehér #F7ECE1', col_purewhite: 'Tiszta fehér #FFFFFF',
+    tog_fadein: 'Fade-in animáció', tog_fadein_sub: 'Indításkor és frissítéskor',
+    tog_glow: 'Ragyogás effekt', tog_glow_sub: 'Finom fény a szöveg körül',
+    btn_apply_style: 'Stílus alkalmazása',
+    page_widgets: 'Widgetek kezelése', page_widgets_sub: 'Aktiválja, deaktiválja és konfigurálja a tükrön megjelenő modulokat.',
+    wdesc_clock: 'Valós idejű óra és dátum. Másodpercenként frissül.',
+    wdesc_weather: '5 napos előrejelzés, jelenlegi hőmérséklet, szél.',
+    wdesc_calendar: 'A Google Naptár eseményeit jeleníti meg.',
+    wdesc_ticker: 'Görgetősáv RSS hírekhez vagy egyéni szöveghez.',
+    wdesc_greeting: 'Egyéni szöveg a tükör közepén.',
+    wdesc_sysinfo: 'CPU, RAM, processzor hőmérséklete.',
+    badge_active: 'Aktív', badge_inactive: 'Inaktív',
+    btn_configure: 'Konfigurálás', btn_activate: 'Aktiválás',
+    page_weather: 'Időjárás beállítások', page_weather_sub: 'Állítsa be a helyszínt és az időjárás-előrejelzés megjelenítési módját.',
+    card_location: 'Helyszín & beállítások', lbl_city: 'A városod', lbl_country: 'Országkód (ISO)',
+    lbl_tempunit: 'Hőmérséklet egység', opt_celsius: 'Celsius (°C)', opt_fahrenheit: 'Fahrenheit (°F)',
+    lbl_forecastdays: 'Megjelenített előrejelzési napok', opt_3days: '3 nap', opt_5days: '5 nap', opt_7days: '7 nap',
+    tog_wind: 'Szél megjelenítése', tog_humidity: 'Páratartalom megjelenítése', tog_autoupdate: 'Automatikus frissítés (15 perc)',
+    btn_apply_weather: 'Időjárás beállítások alkalmazása', btn_refresh_weather: 'Előnézet frissítése',
+    page_news: 'Hírek beállítása', page_news_sub: 'Szabja testre a görgetősáv forrását és tartalmát.',
+    card_rss: 'RSS-források', lbl_rss_main: 'Elsődleges RSS-hírcsatorna', lbl_rss_secondary: 'Másodlagos RSS-hírcsatorna (nem kötelező)',
+    lbl_news_cat: 'Hírkategória', opt_all: 'Mind', opt_politics: 'Politika', opt_sport: 'Sport',
+    opt_tech: 'Tech', opt_economy: 'Gazdaság',
+    lbl_ticker_speed: 'Ticker sebessége', opt_slow: 'Lassú', opt_normal: 'Normál', opt_fast: 'Gyors',
+    card_ticker_manual: 'Manuális ticker (RSS helyett)', lbl_ticker_custom: 'Egyéni szöveg a sávhoz',
+    btn_apply_ticker: 'Ticker alkalmazása a tükörre', btn_clear: 'Törlés',
+    page_calendar: 'Naptár & Üzenet', page_calendar_sub: 'Konfigurálja a Google Naptárt és a tükrön megjelenő személyes üzenetet.',
+    card_cal_settings: 'Naptár beállítások', cal_device_sub: 'Konfigurálja a CalDAV URL-t vagy a Google integrációt',
+    badge_notconnected: 'Nincs csatlakozva', lbl_cal_url: 'Naptár URL (iCal / CalDAV)',
+    lbl_events_shown: 'Megjelenített események', lbl_cal_range: 'Időtartomány',
+    opt_today: 'Ma', opt_today_tomorrow: 'Ma + Holnap', opt_this_week: 'Ezen a héten',
+    btn_save_calendar: 'Naptár mentése', card_greeting: 'Üdvözlő üzenet',
+    lbl_greeting: 'A tükör közepén megjelenő üzenet',
+    tog_timegreet: 'Időalapú üdvözlet', tog_timegreet_sub: 'Reggel / Napközben / Este',
+    tog_username: 'Felhasználónév megjelenítése', tog_username_sub: 'Arcfelismerés szükséges',
+    btn_apply_greeting: 'Üzenet alkalmazása',
+    page_network: 'Hálózat & Kapcsolat', page_network_sub: 'Wi-Fi kapcsolat és az okostükörhöz csatlakozó eszközök kezelése.',
+    card_server: 'Webszerver — Raspberry Pi 4', card_devices: 'Csatlakoztatott eszközök',
+    card_wifi: 'Tükör Wi-Fi beállítások', lbl_ssid: 'Hálózat neve (SSID)', lbl_wifipass: 'Wi-Fi jelszó',
+    btn_save_wifi: 'Mentés & Wi-Fi alkalmazása',
+    page_settings: 'Alkalmazás beállítások', page_settings_sub: 'Globális konfiguráció az IntelliGlass-hoz, az okostükörhöz és a külső integrációkhoz.',
+    card_lang: 'Nyelv & Régió', lbl_lang: 'Felület nyelve', lbl_dateformat: 'Tükör dátumformátuma',
+    lbl_timeformat: 'Időformátum', lbl_timezone: 'Időzóna', btn_save_lang: 'Nyelv & Régió mentése',
+    card_apikeys: 'API-kulcsok', lbl_owm: 'OpenWeatherMap API-kulcs', lbl_gcal: 'Google Naptár API-kulcs',
+    lbl_newsapi: 'NewsAPI-kulcs (nem kötelező)', btn_save_apikeys: 'API-kulcsok mentése',
+    card_security: 'Biztonság & Hozzáférés', tog_password: 'Webes felület jelszava',
+    tog_password_sub: 'Védi a vezérlőpultot', tog_localonly: 'Csak helyi hálózat',
+    tog_localonly_sub: 'Blokkolja az internetről való hozzáférést', tog_log: 'Tevékenységnapló',
+    tog_log_sub: 'Elmenti a felhasználói műveleteket a tükrön', tog_autoupdate2: 'Automatikus frissítések',
+    tog_autoupdate2_sub: 'MagicMirror² frissítés', card_system: 'RPi4 rendszervezérlés',
+    btn_restart_mm: 'MM² újraindítása', btn_reboot: 'RPi újraindítása', btn_shutdown: 'RPi leállítása',
+    btn_factory_reset: 'Gyári visszaállítás', card_about: 'Az IntelliGlass-ról',
+    sub_rpi4: 'Raspberry Pi 4',
+    wname_clock: 'Digitális óra',
+    wname_weather: 'Időjárás',
+    wname_calendar: 'Google Naptár',
+    wname_ticker: 'Hírek tickere',
+    wname_greeting: 'Üdvözlő üzenet',
+    wname_sysinfo: 'RPi Statisztikák',
+    info_weather_api: 'Az időjárási adatok az OpenWeatherMap API-n keresztül kerülnek lekérésre. API-kulcsot a Beállítások → API Keys menüpontban adja meg.',
+    info_network_hint: 'Csatlakozzon ugyanazon Wi-Fi hálózaton bármely böngészőből a következő címen:',
+    info_wifi_warning: 'A Wi-Fi adatok módosítása újraindítja a wireless modult. Ellenőrizze az adatokat mentés előtt.',
+    info_apikeys: 'Az API-kulcsok titkosítva tárolódnak a Raspberry Pi-n és nem kerülnek hálózati átvitelre.',
+    about_version: 'Verzió',
+    about_hardware: 'Hardver',
+    about_framework: 'Tükör keretrendszer',
+    about_project: 'Projekt',
+    about_protocol: 'Kommunikációs protokoll',
+    net_ip_label: 'Tükör IP',
+    net_port_label: 'Port',
+    net_protocol_label: 'Protokoll',
+    net_clients_label: 'Aktív kliensek',
+    net_no_devices: 'Nincs csatlakoztatott eszköz. Csatlakoztassa a tükröt az aktív kliensek megtekintéséhez.',
+    suggest1: 'Üdvözlöm otthon!',
+    suggest2: 'Szép napot!',
+    suggest3: 'Have a great day!',
+    toast_applied: '✓ Változások elküldve a tükörnek!', toast_reload: '↺ Tükör újratölt...',
+    toast_lang: '✓ Nyelv megváltoztatva!', toast_wifi: '📶 Wi-Fi konfiguráció elküldve RPi-nek!',
+    toast_widget_active: '✓ Widget aktiválva!', confirm_reset: 'Biztosan vissza szeretné állítani a tükröt a gyári beállításokra? Minden konfiguráció törlődik.',
+  }
+};
+
+let currentLang = 'en';
+
+/* Aplică traducerile pe toate elementele cu data-i18 */
+function applyTranslations(lang) {
+  const t = translations[lang] || translations.ro;
+  document.querySelectorAll('[data-i18n]').forEach(function(el) {
+    const key = el.getAttribute('data-i18n');
+    if (t[key] !== undefined) {
+      el.textContent = t[key];
+    }
+  });
+  document.querySelectorAll('[data-i18n-prefix]').forEach(function(el) {
+    const key = el.getAttribute('data-i18n-prefix');
+    if (t[key] !== undefined) {
+      const span = el.querySelector('span');
+      const val = span ? span.textContent : '';
+      el.textContent = t[key] + ' — ';
+      if (span) {
+        const newSpan = document.createElement('span');
+        newSpan.id = span.id;
+        newSpan.textContent = val;
+        el.appendChild(newSpan);
+      }
+    }
+  });
+  document.title = 'IntelliGlass — ' + (lang === 'ro' ? 'Control Oglindă Smart' : lang === 'en' ? 'Smart Mirror Control' : lang === 'de' ? 'Smart-Spiegel Steuerung' : 'Okostükör Vezérlés');
+  document.documentElement.setAttribute('lang', lang);
+}
+
+/* LANGUAGE */
+function changeLang(lang) {
+  const allowedLangs = ['ro', 'en', 'de', 'hu'];
+  if (!allowedLangs.includes(lang)) return;
+  currentLang = lang;
+
+  ['set-lang'].forEach(function(id) {
+    const el = document.getElementById(id);
+    if (el) el.value = lang;
+  });
+  document.querySelectorAll('.lang-select').forEach(function(el) { el.value = lang; });
+
+  applyTranslations(lang);
+
+  const t = translations[lang];
+  setText('conn-label', state.connected ? t.conn_connected : t.conn_disconnected);
+  if (state.connected) {
+    document.getElementById('conn-label').style.color = 'var(--success)';
+  }
+
+  sendCommand({ type: 'set_language', lang });
+  showToast(t.toast_lang);
+}
+
+/* TOAST */
+let toastTimer;
+function showToast(msg, isErr) {
+  const t = document.getElementById('toast');
+  const icon = document.getElementById('toast-icon');
+  const msgEl = document.getElementById('toast-msg');
+  if (!t || !icon || !msgEl) return;
+  msgEl.textContent = typeof msg === 'string' ? msg.substring(0, 120) : '';
+  t.style.borderColor = isErr ? 'rgba(248,113,113,0.4)' : 'rgba(74,222,128,0.3)';
+  icon.textContent = isErr ? '⚠' : '✓';
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function() { t.classList.remove('show'); }, 3000);
+}
+
+applyTranslations('en');
+</script>
+</body>
+</html>

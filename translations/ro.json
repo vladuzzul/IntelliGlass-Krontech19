@@ -27,7 +27,7 @@
 	"NW": "NW",
 	"NNW": "NNW",
 
-	"FEELS": "Se simte ca fiind {DEGREE}",
+	"FEELS": "Se simte ca {DEGREE}",
 	"PRECIP_POP": "Probabilitate de precipitații",
 	"PRECIP_AMOUNT": "Cantitate de precipitații",
 
