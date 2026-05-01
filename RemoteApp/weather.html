@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; connect-src ws: wss: http: https:; img-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self';">
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
+<meta http-equiv="X-Frame-Options" content="DENY">
+<meta http-equiv="Referrer-Policy" content="no-referrer">
+<title>IntelliGlass — Smart Mirror Control</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+
+<nav class="topbar">
+  <div style="display:flex; align-items:center; gap:12px;">
+    <button class="hamburger" id="hamburger-btn" aria-label="Meniu" onclick="toggleSidebar()">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="logo">
+      <div class="logo-icon">◈</div>
+      Intelli<span>Glass</span>
+    </div>
+  </div>
+
+  <div class="topbar-right">
+    <div class="status-dot" id="conn-dot" style="background:#f87171;"></div>
+    <span class="status-label" id="conn-label" data-i18n="conn_disconnected">Deconectat</span>
+    <select class="lang-select" onchange="changeLang(this.value)" id="lang-select-top">
+      <option value="ro">🇷🇴 Română</option>
+      <option value="en" selected>🇬🇧 English</option>
+      <option value="de">🇩🇪 Deutsch</option>
+      <option value="hu">🇭🇺 Magyar</option>
+    </select>
+  </div>
+</nav>
+
+<div class="layout">
+
+<!-- OVERLAY for mobile sidebar -->
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+
+<aside class="sidebar" id="main-sidebar">
+  <div class="sidebar-section-label" data-i18n="side_mirror">Oglindiță</div>
+  <a class="sidebar-item" href="dashboard.html">
+    <span class="si-icon">⬡</span> <span data-i18n="side_overview">Prezentare</span>
+  </a>
+  <a class="sidebar-item" href="layout.html">
+    <span class="si-icon">⊞</span> <span data-i18n="side_layout">Aranjament</span>
+  </a>
+  <a class="sidebar-item" href="widgets.html">
+    <span class="si-icon">◧</span> <span data-i18n="side_widgets">Widget-uri</span>
+  </a>
+
+  <div class="sidebar-section-label" data-i18n="side_customize">Personalizare</div>
+  <a class="sidebar-item active" href="weather.html">
+    <span class="si-icon">☁</span> <span data-i18n="side_weather">Vreme</span>
+  </a>
+  <a class="sidebar-item" href="news.html">
+    <span class="si-icon">◉</span> <span data-i18n="side_news">Știri</span>
+  </a>
+  <a class="sidebar-item" href="calendar.html">
+    <span class="si-icon">◫</span> <span data-i18n="side_calendar">Calendar</span>
+  </a>
+
+  <div class="sidebar-section-label" data-i18n="side_system">Sistem</div>
+  <a class="sidebar-item" href="network.html">
+    <span class="si-icon">⊛</span> <span data-i18n="side_network">Rețea / Wi-Fi</span>
+  </a>
+  <a class="sidebar-item" href="settings.html">
+    <span class="si-icon">⚙</span> <span data-i18n="side_settings">Setări</span>
+  </a>
+
+  <div style="margin-top: auto; padding: 16px 8px 8px;">
+    <div style="font-size: 11px; color: var(--text-dim); line-height: 1.7;">
+      <span style="color:var(--linen); font-weight:600;">IntelliGlass</span><br>
+      <span id="sidebar-ip" style="color:rgba(141,134,201,0.4);">—</span>
+    </div>
+  </div>
+</aside>
+
+
+<main class="main">
+
+  <!-- ─── WEATHER ─── -->
+  <div id="sec-weather" class="section visible">
+    <div class="page-header">
+      <div class="page-title" data-i18n="page_weather">Configurare Vreme</div>
+      <div class="page-sub" data-i18n="page_weather_sub">Setează locația și modul de afișare al prognozei meteo pe oglindă.</div>
+    </div>
+    <div class="accent-bar"></div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">📍 <span data-i18n="card_location">Locație & Setări</span></div>
+        <div class="form-row">
+          <label data-i18n="lbl_city">Orașul tău</label>
+          <input type="text" id="weather-city" value="Brașov" placeholder="ex: Cluj-Napoca, Sibiu...">
+        </div>
+        <div class="form-row">
+          <label data-i18n="lbl_country">Cod țară (ISO)</label>
+          <input type="text" id="weather-country" value="RO" placeholder="ex: RO, DE, GB">
+        </div>
+        <div class="form-row">
+          <label data-i18n="lbl_tempunit">Unitate temperatură</label>
+          <select id="temp-unit">
+            <option value="metric" selected data-i18n="opt_celsius">Celsius (°C)</option>
+            <option value="imperial" data-i18n="opt_fahrenheit">Fahrenheit (°F)</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label data-i18n="lbl_forecastdays">Zile prognoză afișate</label>
+          <select id="forecast-days">
+            <option value="3" data-i18n="opt_3days">3 zile</option>
+            <option value="5" selected data-i18n="opt_5days">5 zile</option>
+            <option value="7" data-i18n="opt_7days">7 zile</option>
+          </select>
+        </div>
+        <div class="toggle-row">
+          <div><div class="toggle-info" data-i18n="tog_wind">Afișare Vânt</div></div>
+          <div class="toggle-switch on" id="tog-wind" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
+        </div>
+        <div class="toggle-row">
+          <div><div class="toggle-info" data-i18n="tog_humidity">Afișare Umiditate</div></div>
+          <div class="toggle-switch" id="tog-humidity" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
+        </div>
+        <div class="toggle-row">
+          <div><div class="toggle-info" data-i18n="tog_autoupdate">Actualizare automată (15 min)</div></div>
+          <div class="toggle-switch on" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="applyWeather()" data-i18n="btn_apply_weather">Aplică Setări Vreme</button>
+          <button class="btn btn-ghost" onclick="fetchWeatherPreview()" data-i18n="btn_refresh_weather">Actualizează Previzualizare</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">🌤 Prognoză Actuală — <span id="weather-city-label">Brașov</span></div>
+        <div id="weather-preview-rows">
+          <div class="weather-row">
+            <span style="font-size:13px; color:var(--text-muted);">Astăzi</span>
+            <span style="font-size:20px;">🌤</span>
+            <span style="font-size:15px; font-weight:500; color:var(--linen);">8.6° / 5.3°</span>
+          </div>
+          <div class="weather-row">
+            <span style="font-size:13px; color:var(--text-muted);">Mâine</span>
+            <span style="font-size:20px;">🌧</span>
+            <span style="font-size:15px; font-weight:500; color:var(--linen);">6.3° / 2.2°</span>
+          </div>
+          <div class="weather-row">
+            <span style="font-size:13px; color:var(--text-muted);">Joi</span>
+            <span style="font-size:20px;">☀</span>
+            <span style="font-size:15px; font-weight:500; color:var(--linen);">11.7° / 0.7°</span>
+          </div>
+          <div class="weather-row">
+            <span style="font-size:13px; color:var(--text-muted);">Vineri</span>
+            <span style="font-size:20px;">⛅</span>
+            <span style="font-size:15px; font-weight:500; color:var(--linen);">13.5° / 5.1°</span>
+          </div>
+          <div class="weather-row">
+            <span style="font-size:13px; color:var(--text-muted);">Sâmbătă</span>
+            <span style="font-size:20px;">☀</span>
+            <span style="font-size:15px; font-weight:500; color:var(--linen);">15.7° / 2.7°</span>
+          </div>
+        </div>
+        <div class="info-box" style="margin-top:14px;">
+          <span data-i18n="info_weather_api">💡 Datele meteo sunt preluate via API OpenWeatherMap. Configurează cheia API în secțiunea Setări → API Keys pentru date în timp real.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <span id="toast-icon" style="font-size:16px;">✓</span>
+  <span id="toast-msg">Modificare aplicată!</span>
+</div>
+
+<script src="js/script.js"></script>
+</body>
+</html>
