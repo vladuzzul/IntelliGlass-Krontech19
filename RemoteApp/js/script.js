@@ -40,12 +40,6 @@ function getDefaultPortFromProtocol() {
   return window.location.protocol === 'https:' ? '443' : '80';
 }
 
-/* Returnează valoarea unui input text, sanitizată */
-function getInput(id) {
-  const el = document.getElementById(id);
-  return el ? sanitize(el.value) : '';
-}
-
 /* Returnează valoarea unui input text, raw */
 function getInputRaw(id) {
   const el = document.getElementById(id);
@@ -73,7 +67,7 @@ function populateCityPresetSelect() {
   if (!select || select.options.length > 0) return;
   const placeholder = document.createElement('option');
   placeholder.value = '';
-  placeholder.textContent = 'Selecteaza oras';
+  placeholder.textContent = 'Select City';
   select.appendChild(placeholder);
 
   ROMANIA_CITY_PRESETS.forEach((preset) => {
@@ -188,14 +182,6 @@ function loadLocalUi() {
   }
 }
 
-function saveLocalUi(updates) {
-  try {
-    const current = loadLocalUi() || {};
-    const next = Object.assign({}, current, updates);
-    localStorage.setItem(LOCAL_UI_STORAGE_KEY, JSON.stringify(next));
-  } catch (e) {}
-}
-
 function applyLocalUi() {
   const stored = loadLocalUi();
   if (!stored) return;
@@ -205,24 +191,6 @@ function applyLocalUi() {
 
   const tickerInput = document.getElementById('custom-ticker');
   if (tickerInput && stored.ticker) tickerInput.value = stored.ticker;
-}
-
-/* NAVIGATION */
-function showSection(name, pillEl) {
-  if (!/^[a-z_]+$/.test(name)) return;
-  document.querySelectorAll('.section').forEach(s => s.classList.remove('visible'));
-  const el = document.getElementById('sec-' + name);
-  if (el) el.classList.add('visible');
-  if (pillEl) {
-    document.querySelectorAll('.nav-pill').forEach(p => p.classList.remove('active'));
-    pillEl.classList.add('active');
-  }
-  closeSidebar();
-}
-
-function setSideActive(btn) {
-  document.querySelectorAll('.sidebar-item').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
 }
 
 /* CONNECTION */
@@ -257,7 +225,7 @@ async function fetchStatus() {
 function connectWS(options = {}) {
   const now = Date.now();
   if (!options.skipThrottle && now - lastConnectAttempt < 2000) {
-    showToast('⚠ Asteaptă 2 secunde între încercări!', true);
+    showToast('⚠ Wait 2 seconds between attempts', true);
     return;
   }
   lastConnectAttempt = now;
@@ -267,13 +235,13 @@ function connectWS(options = {}) {
   const port = portInput || getDefaultPortFromProtocol();
 
   if (!isValidHost(host)) {
-    showToast('⚠ IP/host invalid! Folosește 192.168.x.x sau localhost', true);
-    wsLog('[✗] IP/host invalid introdus.', 'err');
+    showToast('⚠ IP/host invalid! Use 192.168.x.x or localhost', true);
+    wsLog('[✗] IP/host invalid introduced.', 'err');
     return;
   }
   if (!isValidPort(port)) {
     showToast('⚠ Port invalid! (1–65535)', true);
-    wsLog('[✗] Port invalid introdus.', 'err');
+    wsLog('[✗] Port invalid introduced.', 'err');
     return;
   }
 
@@ -318,13 +286,13 @@ function disconnectWS() {
     state.statusTimer = null;
   }
   setConnStatus(false);
-  wsLog('[—] Deconectat manual.', 'info');
+  wsLog('[—] Disconnected manually.', 'info');
 }
 
 /* Trimitem comenzi ca JSON */
 async function sendCommand(obj) {
   if (!state.connected || !state.apiBase) {
-    wsLog('[!] Nu ești conectat la oglindă. Apasă Conectează.', 'err');
+    wsLog('[!] You are not connected to the mirror. Press Connect.', 'err');
     return { ok: false, error: 'Not connected' };
   }
   const type = obj && obj.type ? String(obj.type) : '';
@@ -389,7 +357,7 @@ function runCommand(obj, successMsg) {
 
 async function updateConfig(payload) {
   if (!state.connected || !state.apiBase) {
-    wsLog('[!] Nu ești conectat la oglindă. Apasă Conectează.', 'err');
+    wsLog('[!] You are not connected to the mirror. Press Connect.', 'err');
     return { ok: false, error: 'Not connected' };
   }
   try {
@@ -712,7 +680,6 @@ function applyConfigToUI(config) {
       const intervalSec = Math.max(1, Math.round(rawInterval / 1000));
       complimentsIntervalInput.value = String(intervalSec);
     } else if (!String(complimentsIntervalInput.value || '').trim()) {
-      // Initialize only once; avoid overwriting the user's typed value if backend returned no interval.
       complimentsIntervalInput.value = '90';
     }
   }
@@ -749,33 +716,6 @@ function applyConfigToUI(config) {
 
 }
 
-function handleMessage(data) {
-  wsLog('[←] tip: ' + sanitize(String(data.type || '?')), 'ok');
-
-  if (data.type === 'status') {
-    if (typeof data.brightness === 'number' && data.brightness >= 0 && data.brightness <= 100) {
-      const bv = Math.round(data.brightness);
-      const sl = document.getElementById('bright-slider');
-      if (sl) sl.value = bv;
-      setText('bright-label', bv + '%');
-      setText('bright-stat', bv + '%');
-    }
-    if (typeof data.clients === 'number') {
-      setText('net-clients', Math.max(0, Math.round(data.clients)));
-    }
-  }
-  if (data.type === 'weather') {
-    if (typeof data.temp === 'number') {
-      const t = Math.round(data.temp);
-      setText('mirror-temp-display', t + '°C');
-      setText('stat-temp', t + '°');
-    }
-    if (typeof data.desc === 'string') {
-      setText('mirror-weather-sub', sanitize(data.desc).substring(0, 80));
-    }
-  }
-}
-
 function wsLog(msg, cls) {
   const log = document.getElementById('ws-log');
   if (!log) return;
@@ -785,7 +725,7 @@ function wsLog(msg, cls) {
   }
   const line = document.createElement('span');
   if (cls) line.className = 'log-' + cls;
-  line.textContent = msg; // textContent, niciodată innerHTML
+  line.textContent = msg; 
   log.appendChild(line);
   log.appendChild(document.createElement('br'));
   log.scrollTop = log.scrollHeight;
@@ -901,20 +841,6 @@ async function applyCompliments() {
   }
 }
 
-function setGreeting(txt) {
-  const el = document.getElementById('compliments-anytime');
-  if (el) el.value = sanitize(txt);
-}
-
-function applyTicker() {
-  const raw = document.getElementById('custom-ticker').value;
-  const val = sanitize(raw).substring(0, 500);
-  if (val) {
-    setText('mirror-ticker', val + '   ');
-    showToast('Ticker update not supported in LAN mode', true);
-  }
-}
-
 async function applyNews() {
   const rssMain = document.getElementById('rss-main')?.value.trim() || '';
   const rssSecondary = document.getElementById('rss-secondary')?.value.trim() || '';
@@ -988,51 +914,6 @@ async function applyLocale() {
   const result = await updateConfig({ locale: { language: lang, timeFormat: parseInt(tf) } });
   handleApplyResult(result);
 }
-
-function saveAPIKeys() {
-  const owm = document.getElementById('owm-key').value.trim();
-  const gcal = document.getElementById('gcal-key').value.trim();
-  const news = document.getElementById('news-key').value.trim();
-  if (owm && owm.length < 10) { showToast('⚠ Cheia OWM pare prea scurtă!', true); return; }
-  showToast('API key updates not supported in LAN mode', true);
-}
-
-function applyPosition() {
-  const widgetEl = document.getElementById('widget-selector');
-  const widget = widgetEl ? sanitize(widgetEl.value).substring(0, 30) : '';
-  const selected = document.querySelector('.pos-cell.selected');
-  const pos = selected ? sanitize(selected.dataset.poskey || '') : 'center';
-  showToast('Widget positioning not supported in LAN mode', true);
-}
-
-function applyStyle() {
-  const widget = sanitize(document.getElementById('widget-selector')?.value || '').substring(0, 30);
-  const sizeEl = document.getElementById('font-size');
-  const opEl = document.getElementById('opacity-val');
-  const colorEl = document.getElementById('widget-color');
-  const size = Math.max(12, Math.min(120, parseInt(sizeEl?.value) || 48));
-  const opacity = Math.max(10, Math.min(100, parseInt(opEl?.value) || 85));
-  const rawColor = colorEl ? colorEl.value : 'F7ECE1';
-  const color = /^[0-9A-Fa-f]{6}$/.test(rawColor) ? rawColor : 'F7ECE1';
-  showToast('Style updates not supported in LAN mode', true);
-}
-
-function selectPos(cell, key, label) {
-  document.querySelectorAll('.pos-cell').forEach(c => c.classList.remove('selected'));
-  cell.classList.add('selected');
-  cell.dataset.poskey = key;
-  setText('pos-label', label + ' selectat');
-}
-
-function updatePosLabel() {}
-
-function confirmReset() {
-  if (confirm((translations[currentLang] || translations.ro).confirm_reset)) {
-    showToast('Factory reset not supported in LAN mode', true);
-  }
-}
-
-
 
 /* TOAST */
 let toastTimer;
