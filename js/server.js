@@ -173,6 +173,7 @@ function Server (configObj) {
 					origin: /.*$/,
 					credentials: true
 				},
+				path: `${basePath}socket.io`,
 				allowEIO3: true,
 				pingInterval: 120000, // server → client ping every 2 mins
 				pingTimeout: 120000 // wait up to 2 mins for client pong
@@ -303,9 +304,14 @@ function Server (configObj) {
 			app.post(withBasePath("remote/command"), (req, res) => {
 				const type = req && req.body ? req.body.type : null;
 				if (type === "reload" || type === "apply_all") {
+					const clients = io && io.engine ? io.engine.clientsCount : 0;
 					Log.info("Remote reload request received, notifying clients");
+					if (clients === 0) {
+						res.status(409).json({ ok: false, error: "No clients connected", clients });
+						return;
+					}
 					io.emit("RELOAD");
-					res.status(200).json({ ok: true });
+					res.status(200).json({ ok: true, clients });
 					return;
 				}
 				res.status(400).json({ ok: false, error: "Unsupported command" });
@@ -419,7 +425,13 @@ function Server (configObj) {
 					}
 
 					if (!changed) {
-						res.status(200).json({ ok: true, updated: { weather: 0, calendar: 0, newsfeed: 0, locale: false } });
+						const clients = io && io.engine ? io.engine.clientsCount : 0;
+						res.status(200).json({
+							ok: true,
+							updated: { weather: 0, calendar: 0, newsfeed: 0, locale: false },
+							reloaded: false,
+							clients
+						});
 						return;
 					}
 
@@ -430,7 +442,17 @@ function Server (configObj) {
 							return;
 						}
 						Log.log("Remote config updated successfully");
-						res.status(200).json({ ok: true, updated: { weather: weatherCount, calendar: calendarCount, newsfeed: newsfeedCount, locale: localeChanged } });
+						const clients = io && io.engine ? io.engine.clientsCount : 0;
+						if (clients > 0) {
+							Log.info("Remote config updated, notifying clients");
+							io.emit("RELOAD");
+						}
+						res.status(200).json({
+							ok: true,
+							updated: { weather: weatherCount, calendar: calendarCount, newsfeed: newsfeedCount, locale: localeChanged },
+							reloaded: clients > 0,
+							clients
+						});
 					});
 				});
 			});

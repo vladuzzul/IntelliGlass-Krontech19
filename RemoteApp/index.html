@@ -27,13 +27,7 @@
 
   <div class="topbar-right">
     <div class="status-dot" id="conn-dot" style="background:#f87171;"></div>
-    <span class="status-label" id="conn-label" data-i18n="conn_disconnected">Deconectat</span>
-    <select class="lang-select" onchange="changeLang(this.value)" id="lang-select-top">
-      <option value="ro">🇷🇴 Română</option>
-      <option value="en" selected>🇬🇧 English</option>
-      <option value="de">🇩🇪 Deutsch</option>
-      <option value="hu">🇭🇺 Magyar</option>
-    </select>
+    <span class="status-label" id="conn-label" data-i18n="conn_disconnected">Disconnected</span>
   </div>
 </nav>
 
@@ -44,28 +38,28 @@
 
 
 <aside class="sidebar" id="main-sidebar">
-  <div class="sidebar-section-label" data-i18n="side_mirror">Oglindiță</div>
+  <div class="sidebar-section-label" data-i18n="side_mirror">Mirror</div>
   <a class="sidebar-item active" href="index.html">
-    <span class="si-icon">⬡</span> <span data-i18n="side_overview">Prezentare</span>
+    <span class="si-icon">⬡</span> <span data-i18n="side_overview">Overview</span>
   </a>
 
-  <div class="sidebar-section-label" data-i18n="side_customize">Personalizare</div>
+  <div class="sidebar-section-label" data-i18n="side_customize">Personalization</div>
   <a class="sidebar-item" href="weather.html">
-    <span class="si-icon">☁</span> <span data-i18n="side_weather">Vreme</span>
+    <span class="si-icon">☁</span> <span data-i18n="side_weather">Weather</span>
   </a>
   <a class="sidebar-item" href="news.html">
-    <span class="si-icon">◉</span> <span data-i18n="side_news">Știri</span>
+    <span class="si-icon">◉</span> <span data-i18n="side_news">News</span>
   </a>
   <a class="sidebar-item" href="calendar.html">
     <span class="si-icon">◫</span> <span data-i18n="side_calendar">Calendar</span>
   </a>
 
-  <div class="sidebar-section-label" data-i18n="side_system">Sistem</div>
+  <div class="sidebar-section-label" data-i18n="side_system">System</div>
   <a class="sidebar-item" href="network.html">
-    <span class="si-icon">⊛</span> <span data-i18n="side_network">Rețea / Wi-Fi</span>
+    <span class="si-icon">⊛</span> <span data-i18n="side_network">Network / Wi-Fi</span>
   </a>
   <a class="sidebar-item" href="settings.html">
-    <span class="si-icon">⚙</span> <span data-i18n="side_settings">Setări</span>
+    <span class="si-icon">⚙</span> <span data-i18n="side_settings">Settings</span>
   </a>
 
   <div style="margin-top: auto; padding: 16px 8px 8px;">
@@ -79,54 +73,33 @@
 
 <main class="main">
 
-  <!-- ─── DASHBOARD ─── -->
   <div id="sec-dashboard" class="section visible">
     <div class="page-header">
       <div class="page-title" id="dash-greeting">Welcome 👋</div>
-      <div class="page-sub" data-i18n="dash_sub">Oglinda ta smart este monitorizată în timp real.</div>
+      <div class="page-sub" data-i18n="dash_sub">Your smart mirror is being monitored in real-time.</div>
     </div>
     <div class="accent-bar"></div>
 
     <div class="grid-4" style="margin-bottom: 20px;">
       <div class="stat-card">
-        <div class="stat-label" data-i18n="stat_status_lbl">Status RPi</div>
+        <div class="stat-label" data-i18n="stat_status_lbl">RPi Status</div>
         <div class="stat-value" id="stat-status" style="font-size:18px; color:#f87171;">Offline</div>
         <div class="stat-sub" data-i18n="sub_rpi4">Raspberry Pi 4</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label" data-i18n="stat_bright_lbl">Luminozitate</div>
-        <div class="stat-value" id="bright-stat">75%</div>
-        <div class="stat-sub" data-i18n="stat_adjustable">Reglabilă</div>
+        <div class="stat-label" data-i18n="stat_bright_lbl">Weather Location</div>
+        <div class="stat-value" id="bright-stat">*coordinates*</div>
+        <div class="stat-sub" data-i18n="stat_adjustable">Adjustable</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label" data-i18n="stat_bright_lbl">News feed</div>
+        <div class="stat-value" id="bright-stat">*availability*</div>
+        <div class="stat-sub" data-i18n="stat_adjustable">Adjustable</div>
       </div>
     </div>
 
-    <div class="grid-2">
-      <!-- Quick Controls -->
-      <div class="card">
-        <div class="card-title">⚡ <span data-i18n="card_quickcontrol">Control Rapid</span></div>
-
-        <div class="form-row">
-          <label data-i18n-prefix="lbl_brightness">Luminozitate Ecran — <span id="bright-label">75%</span></label>
-          <input type="range" min="0" max="100" value="75" id="bright-slider"
-            oninput="setBrightness(this.value)">
-        </div>
-
-        <div class="divider"></div>
-
-        <div class="btn-row">
-          <button class="btn btn-primary" onclick="runCommand({type:'apply_all'}, (translations[currentLang]||translations.ro).toast_applied)" data-i18n="btn_apply_mirror">
-            Aplică pe Oglindă
-          </button>
-          <button class="btn btn-ghost" onclick="runCommand({type:'reload'}, (translations[currentLang]||translations.ro).toast_reload)" data-i18n="btn_reload">
-            Reîncarcă
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- WebSocket Connection Card -->
     <div class="card">
-      <div class="card-title">🔌 <span data-i18n="card_ws">Conexiune WebSocket cu Raspberry Pi</span></div>
+      <div class="card-title">🔌 <span data-i18n="card_ws">Connection to WebSocket Raspberry Pi</span></div>
       <div class="form-row-2">
         <div>
           <label data-i18n="lbl_ip">IP Raspberry Pi</label>
@@ -138,568 +111,11 @@
         </div>
       </div>
       <div class="btn-row" style="margin-top:4px; margin-bottom:14px;">
-        <button class="btn btn-primary" onclick="connectWS()" data-i18n="btn_connect">Conectează</button>
-        <button class="btn btn-ghost" onclick="disconnectWS()" data-i18n="btn_disconnect">Deconectează</button>
+        <button class="btn btn-primary" onclick="connectWS()" data-i18n="btn_connect">Connect</button>
+        <button class="btn btn-ghost" onclick="disconnectWS()" data-i18n="btn_disconnect">Disconnect</button>
       </div>
       <div class="ws-log" id="ws-log">
-        <span class="log-info">[IntelliGlass] <span data-i18n="ws_hint">Introdu IP-ul Raspberry Pi și apasă Conectează.</span></span><br>
-      </div>
-    </div>
-  </div>
-
-  <!-- ─── LAYOUT ─── -->
-  <div id="sec-layout" class="section">
-    <div class="page-header">
-      <div class="page-title" data-i18n="page_layout">Aranjament Widget-uri</div>
-      <div class="page-sub" data-i18n="page_layout_sub">Selectează poziția și stilizarea fiecărui widget pe suprafața oglinzii.</div>
-    </div>
-    <div class="accent-bar"></div>
-    <div class="grid-2">
-      <div class="card">
-        <div class="card-title">🗺 <span data-i18n="card_position">Poziție Widget</span></div>
-        <div class="form-row">
-          <label data-i18n="lbl_widget_select">Widget de configurat</label>
-          <select id="widget-selector" onchange="updatePosLabel()">
-            <option value="clock" data-i18n="wopt_clock">🕐 Ceas Digital</option>
-            <option value="weather" data-i18n="wopt_weather">☁ Vreme</option>
-            <option value="calendar" data-i18n="wopt_calendar">📅 Calendar</option>
-            <option value="newsticker" data-i18n="wopt_ticker">📰 Ticker Știri</option>
-            <option value="greeting" data-i18n="wopt_greeting">💬 <span data-i18n="card_greeting">Mesaj de Bun Venit</span></option>
-            <option value="sysinfo" data-i18n="wopt_sysinfo">📊 Statistici Sistem</option>
-          </select>
-        </div>
-        <div style="text-align:center; margin: 12px 0 8px;">
-          <div style="font-size: 12px; color: var(--text-dim); margin-bottom: 10px;">Suprafața oglinzii — selectează zona</div>
-          <div class="position-grid" id="pos-grid">
-            <div class="pos-cell" onclick="selectPos(this,'top_left','Stânga Sus')">↖</div>
-            <div class="pos-cell" onclick="selectPos(this,'top_center','Sus Centru')">↑</div>
-            <div class="pos-cell" onclick="selectPos(this,'top_right','Dreapta Sus')">↗</div>
-            <div class="pos-cell" onclick="selectPos(this,'middle_left','Stânga Mijloc')">←</div>
-            <div class="pos-cell selected" onclick="selectPos(this,'center','Centru')">C</div>
-            <div class="pos-cell" onclick="selectPos(this,'middle_right','Dreapta Mijloc')">→</div>
-            <div class="pos-cell" onclick="selectPos(this,'bottom_left','Stânga Jos')">↙</div>
-            <div class="pos-cell" onclick="selectPos(this,'bottom_center','Jos Centru')">↓</div>
-            <div class="pos-cell" onclick="selectPos(this,'bottom_right','Dreapta Jos')">↘</div>
-          </div>
-          <div style="font-size: 11px; color: var(--periwinkle); margin-top: 10px;" id="pos-label">Centru selectat</div>
-        </div>
-        <div class="btn-row" style="justify-content:center;">
-          <button class="btn btn-primary" onclick="applyPosition()" data-i18n="btn_save_pos">Salvează Poziția</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">🎨 <span data-i18n="card_style">Stilizare Widget</span></div>
-        <div class="form-row">
-          <label data-i18n="lbl_font">Font Afișaj</label>
-          <select id="widget-font">
-            <option>Outfit (Sans-serif)</option>
-            <option>DM Sans</option>
-            <option>Monospace</option>
-          </select>
-        </div>
-        <div class="form-row-2">
-          <div>
-            <label data-i18n="lbl_fontsize">Mărime Font (px)</label>
-            <input type="number" id="font-size" value="48" min="12" max="120">
-          </div>
-          <div>
-            <label data-i18n="lbl_opacity">Opacitate (%)</label>
-            <input type="number" id="opacity-val" value="85" min="10" max="100">
-          </div>
-        </div>
-        <div class="form-row">
-          <label data-i18n="lbl_color">Culoare Text</label>
-          <select id="widget-color">
-            <option value="F7ECE1" data-i18n="col_warmwhite">Alb Cald #F7ECE1</option>
-            <option value="FFFFFF" data-i18n="col_purewhite">Alb Pur #FFFFFF</option>
-            <option value="CAC4CE">Pale Slate #CAC4CE</option>
-            <option value="8D86C9">Periwinkle #8D86C9</option>
-            <option value="725AC1">Slate Blue #725AC1</option>
-          </select>
-        </div>
-        <div class="toggle-row">
-          <div>
-            <div class="toggle-info" data-i18n="tog_fadein">Animație Fade-in</div>
-            <div class="toggle-sub" data-i18n="tog_fadein_sub">La pornire și refresh</div>
-          </div>
-          <div class="toggle-switch on" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
-        </div>
-        <div class="toggle-row">
-          <div>
-            <div class="toggle-info" data-i18n="tog_glow">Efect Glow</div>
-            <div class="toggle-sub" data-i18n="tog_glow_sub">Luminos subtil în jurul textului</div>
-          </div>
-          <div class="toggle-switch" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
-        </div>
-        <div class="btn-row">
-          <button class="btn btn-primary" onclick="applyStyle()" data-i18n="btn_apply_style">Aplică Stil</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ─── WIDGETS ─── -->
-  <div id="sec-widgets" class="section">
-    <div class="page-header">
-      <div class="page-title" data-i18n="page_widgets">Gestionare Widget-uri</div>
-      <div class="page-sub" data-i18n="page_widgets_sub">Activează, dezactivează și configurează modulele afișate pe oglindă.</div>
-    </div>
-    <div class="accent-bar"></div>
-    <div class="grid-3">
-      <div class="card" style="border-color: var(--glow-md);">
-        <div style="font-size:32px; margin-bottom:10px;">🕐</div>
-        <div style="font-size:15px; font-weight:600; color:var(--linen); margin-bottom:4px;" data-i18n="wname_clock">Ceas Digital</div>
-        <div style="font-size:12px; color:var(--text-dim); margin-bottom:12px;" data-i18n="wdesc_clock" data-i18n="wdesc_clock">Oră și dată în timp real. Actualizare la 1 secundă.</div>
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <span class="badge badge-green" data-i18n="badge_active">Activ</span>
-          <button class="btn btn-ghost" style="padding:5px 12px; font-size:12px;" onclick="showSection('layout',null);setSideActive(document.querySelectorAll('.sidebar-item')[1])" data-i18n="btn_configure">Configurează</button>
-        </div>
-      </div>
-      <div class="card" style="border-color: var(--glow-md);">
-        <div style="font-size:32px; margin-bottom:10px;">☁</div>
-        <div style="font-size:15px; font-weight:600; color:var(--linen); margin-bottom:4px;" data-i18n="wname_weather">Vreme</div>
-        <div style="font-size:12px; color:var(--text-dim); margin-bottom:12px;" data-i18n="wdesc_weather" data-i18n="wdesc_weather">Prognoză 5 zile, temperatură curentă, vânt.</div>
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <span class="badge badge-green">Activ</span>
-          <button class="btn btn-ghost" style="padding:5px 12px; font-size:12px;" onclick="showSection('weather',null);setSideActive(document.querySelectorAll('.sidebar-item')[1])" data-i18n="btn_configure">Configurează</button>
-        </div>
-      </div>
-      <div class="card" style="border-color: var(--glow-md);">
-        <div style="font-size:32px; margin-bottom:10px;">📅</div>
-        <div style="font-size:15px; font-weight:600; color:var(--linen); margin-bottom:4px;" data-i18n="wname_calendar">Google Calendar</div>
-        <div style="font-size:12px; color:var(--text-dim); margin-bottom:12px;" data-i18n="wdesc_calendar" data-i18n="wdesc_calendar">Afișează evenimentele din calendarul Google.</div>
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <span class="badge badge-green">Activ</span>
-          <button class="btn btn-ghost" style="padding:5px 12px; font-size:12px;" onclick="showSection('calendar',null);setSideActive(document.querySelectorAll('.sidebar-item')[1])" data-i18n="btn_configure">Configurează</button>
-        </div>
-      </div>
-      <div class="card" style="border-color: var(--glow-md);">
-        <div style="font-size:32px; margin-bottom:10px;">📰</div>
-        <div style="font-size:15px; font-weight:600; color:var(--linen); margin-bottom:4px;" data-i18n="wname_ticker">Ticker Știri</div>
-        <div style="font-size:12px; color:var(--text-dim); margin-bottom:12px;" data-i18n="wdesc_ticker" data-i18n="wdesc_ticker">Bandă derulantă cu știri RSS sau text custom.</div>
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <span class="badge badge-green">Activ</span>
-          <button class="btn btn-ghost" style="padding:5px 12px; font-size:12px;" onclick="showSection('news',null)">Configurează</button>
-        </div>
-      </div>
-      <div class="card" style="border-color: var(--glow-md);">
-        <div style="font-size:32px; margin-bottom:10px;">💬</div>
-        <div style="font-size:15px; font-weight:600; color:var(--linen); margin-bottom:4px;" data-i18n="wname_greeting">Mesaj Bun Venit</div>
-        <div style="font-size:12px; color:var(--text-dim); margin-bottom:12px;" data-i18n="wdesc_greeting" data-i18n="wdesc_greeting">Text personalizat în centrul oglinzii.</div>
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <span class="badge badge-green">Activ</span>
-          <button class="btn btn-ghost" style="padding:5px 12px; font-size:12px;" onclick="showSection('calendar',null);setSideActive(document.querySelectorAll('.sidebar-item')[1])" data-i18n="btn_configure">Configurează</button>
-        </div>
-      </div>
-      <div class="card">
-        <div style="font-size:32px; margin-bottom:10px;">📊</div>
-        <div style="font-size:12px; color:var(--text-dim); margin-bottom:12px;" data-i18n="wdesc_sysinfo" data-i18n="wdesc_sysinfo">CPU, RAM, temperatură procesor.</div>
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <span class="badge badge-warn" data-i18n="badge_inactive">Inactiv</span>
-          <button class="btn btn-ghost" style="padding:5px 12px; font-size:12px;" onclick="runCommand({type:'enable_widget',widget:'sysinfo'}, (translations[currentLang]||translations.ro).toast_widget_active)" data-i18n="btn_activate">Activează</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ─── WEATHER ─── -->
-  <div id="sec-weather" class="section">
-    <div class="page-header">
-      <div class="page-title" data-i18n="page_weather">Configurare Vreme</div>
-      <div class="page-sub" data-i18n="page_weather_sub">Setează locația și modul de afișare al prognozei meteo pe oglindă.</div>
-    </div>
-    <div class="accent-bar"></div>
-    <div class="grid-2">
-      <div class="card">
-        <div class="card-title">📍 <span data-i18n="card_location">Locație & Setări</span></div>
-        <div class="form-row">
-          <label data-i18n="lbl_latitude">Latitudine</label>
-          <input type="text" id="weather-latitude" value="47.6782" placeholder="ex: 47.6782, 46.7692...">
-        </div>
-        <div class="form-row">
-          <label data-i18n="lbl_longitude">Longitudine</label>
-          <input type="text" id="weather-longitude" value="23.5806" placeholder="ex: 23.5806, 24.6789...">
-        </div>
-        <div class="form-row">
-          <label>Oras (preset)</label>
-          <select id="weather-city-select" onchange="applyCityPreset(this.value)"></select>
-        </div>
-        <div class="form-row">
-          <label data-i18n="lbl_tempunit">Unitate temperatură</label>
-          <select id="temp-unit">
-            <option value="metric" selected data-i18n="opt_celsius">Celsius (°C)</option>
-            <option value="imperial" data-i18n="opt_fahrenheit">Fahrenheit (°F)</option>
-          </select>
-        </div>
-        <div class="form-row">
-          <label data-i18n="lbl_forecastdays">Zile prognoză afișate</label>
-          <select id="forecast-days">
-            <option value="3" data-i18n="opt_3days">3 zile</option>
-            <option value="5" selected data-i18n="opt_5days">5 zile</option>
-            <option value="7" data-i18n="opt_7days">7 zile</option>
-          </select>
-        </div>
-        <div class="toggle-row">
-          <div><div class="toggle-info" data-i18n="tog_wind">Afișare Vânt</div></div>
-          <div class="toggle-switch on" id="tog-wind" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
-        </div>
-        <div class="toggle-row">
-          <div><div class="toggle-info" data-i18n="tog_humidity">Afișare Umiditate</div></div>
-          <div class="toggle-switch" id="tog-humidity" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
-        </div>
-        <div class="toggle-row">
-          <div><div class="toggle-info" data-i18n="tog_autoupdate">Actualizare automată (15 min)</div></div>
-          <div class="toggle-switch on" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
-        </div>
-        <div class="btn-row">
-          <button class="btn btn-primary" onclick="applyWeather()" data-i18n="btn_apply_weather">Aplică Setări Vreme</button>
-          <button class="btn btn-ghost" onclick="fetchWeatherPreview()" data-i18n="btn_refresh_weather">Actualizează Previzualizare</button>
-        </div>
-      </div>
-      <div class="info-box" style="margin-top:14px;">
-      <span data-i18n="info_weather_api">💡 Datele meteo sunt preluate via API OpenWeatherMap. Configurează cheia API în secțiunea Setări → API Keys pentru date în timp real.</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- ─── NEWS ─── -->
-  <div id="sec-news" class="section">
-    <div class="page-header">
-      <div class="page-title" data-i18n="page_news">Configurare Știri</div>
-      <div class="page-sub" data-i18n="page_news_sub">Personalizează sursa și conținutul banderolei derulante de pe oglindă.</div>
-    </div>
-    <div class="accent-bar"></div>
-    <div class="card">
-      <div class="card-title">📡 <span data-i18n="card_rss">Surse RSS</span></div>
-      <div class="form-row">
-        <label data-i18n="lbl_rss_main">Feed RSS National</label>
-        <input type="text" id="rss-main" value="https://feeds.digi24.ro/rss/stiri" placeholder="https://...">
-      </div>
-      <div class="form-row">
-        <label data-i18n="lbl_rss_secondary">Feed RSS Local</label>
-        <input type="text" id="rss-secondary" value="" placeholder="https://...">
-      </div>
-      <div class="form-row-2">
-        <div>
-          <label data-i18n="lbl_news_cat">Categorie Știri</label>
-          <select id="news-cat">
-            <option value="all" data-i18n="opt_all">Toate</option>
-            <option value="politics" data-i18n="opt_politics">Politică</option>
-            <option value="sport" data-i18n="opt_sport">Sport</option>
-            <option value="tech" data-i18n="opt_tech">Tech</option>
-            <option value="economy" data-i18n="opt_economy">Economie</option>
-            <option value="local">Local Brașov</option>
-          </select>
-        </div>
-        <div>
-          <label data-i18n="lbl_ticker_speed">Viteză ticker</label>
-          <select id="ticker-speed">
-            <option value="slow" data-i18n="opt_slow">Lentă</option>
-            <option value="normal" selected data-i18n="opt_normal">Normală</option>
-            <option value="fast" data-i18n="opt_fast">Rapidă</option>
-          </select>
-        </div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title">✏ <span data-i18n="card_ticker_manual">Ticker Manual (înlocuiește RSS)</span></div>
-      <div class="form-row">
-        <label data-i18n="lbl_ticker_custom">Text personalizat pentru banderoló</label>
-        <textarea id="custom-ticker" placeholder="📰 Știrea ta aici ⬥ O altă știre ⬥ Și încă una...">📰 BNR menține dobânda de politică monetară la 6,5% ⬥ 🌤 Brașov: temperaturi în creștere joi și vineri ⬥ 🏆 Romania a calificat 3 sportivi la Olimpiada 2028 ⬥ 💻 Kronsoft Innovation Hub — cea mai bună echipă 2026</textarea>
-      </div>
-      <div class="btn-row">
-        <button class="btn btn-primary" onclick="applyTicker()" data-i18n="btn_apply_ticker">Aplică Ticker pe Oglindă</button>
-        <button class="btn btn-ghost" onclick="document.getElementById('custom-ticker').value=''" data-i18n="btn_clear">Golește</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ─── CALENDAR ─── -->
-  <div id="sec-calendar" class="section">
-    <div class="page-header">
-      <div class="page-title" data-i18n="page_calendar">Calendar & Mesaj</div>
-      <div class="page-sub" data-i18n="page_calendar_sub">Configurează Google Calendar și mesajul personal afișat pe oglindă.</div>
-    </div>
-    <div class="accent-bar"></div>
-    <div class="grid-2">
-      <div class="card">
-        <div class="card-title">📅 <span data-i18n="card_cal_settings">Setări Calendar</span></div>
-        <div class="device-card" style="margin-bottom:16px;">
-          <div class="device-icon">📅</div>
-          <div style="flex:1;">
-            <div class="device-name" data-i18n="wname_calendar">Google Calendar</div>
-            <div class="device-ip" data-i18n="cal_device_sub">Configurează URL-ul CalDAV sau integrarea Google</div>
-          </div>
-          <span class="badge badge-warn" data-i18n="badge_notconnected">Neconectat</span>
-        </div>
-        <div class="form-row">
-          <label data-i18n="lbl_cal_url">URL Calendar (iCal / CalDAV)</label>
-          <input type="text" id="cal-url" value="" placeholder="https://calendar.google.com/...">
-        </div>
-        <div class="form-row-2">
-          <div>
-            <label data-i18n="lbl_events_shown">Evenimente afișate</label>
-            <select id="cal-events">
-              <option>3</option>
-              <option selected>5</option>
-              <option>7</option>
-            </select>
-          </div>
-          <div>
-            <label data-i18n="lbl_cal_range">Interval</label>
-            <select id="cal-range">
-              <option data-i18n="opt_today">Azi</option>
-              <option selected data-i18n="opt_today_tomorrow">Azi + Mâine</option>
-              <option data-i18n="opt_this_week">Săptămâna asta</option>
-            </select>
-          </div>
-        </div>
-        <div class="btn-row">
-          <button class="btn btn-primary" onclick="applyCalendar()" data-i18n="btn_save_calendar">Salvează Calendar</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">💬 Mesaj de Bun Venit</div>
-        <div class="form-row">
-          <label data-i18n="lbl_greeting">Mesajul afișat în centrul oglinzii</label>
-          <input type="text" id="greeting-input" value="Great to see you!" placeholder="Bun venit acasă!">
-        </div>
-        <div style="font-size:12px; color:var(--text-dim); margin-bottom:16px; line-height:1.6;">
-          Sugestii: <span style="color:var(--periwinkle); cursor:pointer;" onclick="setGreeting('Bun venit acasă!')" data-i18n="suggest1">Bun venit acasă!</span> ·
-          <span style="color:var(--periwinkle); cursor:pointer;" onclick="setGreeting('Zi bună, Vlad!')" data-i18n="suggest2">Zi bună!</span> ·
-          <span style="color:var(--periwinkle); cursor:pointer;" onclick="setGreeting('Have a great day!')" data-i18n="suggest3">Have a great day!</span>
-        </div>
-        <div class="toggle-row">
-          <div>
-            <div class="toggle-info" data-i18n="tog_timegreet">Salut bazat pe oră</div>
-            <div class="toggle-sub" data-i18n="tog_timegreet_sub">Dimineața / Ziua / Seara</div>
-          </div>
-          <div class="toggle-switch" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
-        </div>
-        <div class="toggle-row">
-          <div>
-            <div class="toggle-info" data-i18n="tog_username">Afișare nume utilizator</div>
-            <div class="toggle-sub" data-i18n="tog_username_sub">Recunoaștere facială necesară</div>
-          </div>
-          <div class="toggle-switch" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
-        </div>
-        <div class="btn-row">
-          <button class="btn btn-primary" onclick="applyGreeting()" data-i18n="btn_apply_greeting">Aplică Mesajul</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ─── NETWORK ─── -->
-  <div id="sec-network" class="section">
-    <div class="page-header">
-      <div class="page-title" data-i18n="page_network">Rețea & Conectivitate</div>
-      <div class="page-sub" data-i18n="page_network_sub">Gestionează conexiunea Wi-Fi și dispozitivele conectate la oglinda smart.</div>
-    </div>
-    <div class="accent-bar"></div>
-    <div class="card">
-      <div class="card-title">📡 <span data-i18n="card_server">Server Web — Raspberry Pi 4</span></div>
-      <div style="display:flex; gap:18px; flex-wrap:wrap; margin-bottom:18px;">
-        <div style="flex:1; min-width:120px;">
-          <div style="font-size:11px; color:var(--text-dim); margin-bottom:4px;" data-i18n="net_ip_label">IP Oglindă</div>
-          <div style="font-family:'Outfit',sans-serif; font-size:20px; color:var(--periwinkle);" id="net-ip">—</div>
-        </div>
-        <div style="flex:1; min-width:120px;">
-          <div style="font-size:11px; color:var(--text-dim); margin-bottom:4px;" data-i18n="net_port_label">Port</div>
-          <div style="font-family:'Outfit',sans-serif; font-size:20px; color:var(--periwinkle);">8080</div>
-        </div>
-        <div style="flex:1; min-width:120px;">
-          <div style="font-size:11px; color:var(--text-dim); margin-bottom:4px;" data-i18n="net_protocol_label">Protocol</div>
-          <div style="font-family:'Outfit',sans-serif; font-size:20px; color:var(--periwinkle);">HTTP/WS</div>
-        </div>
-        <div style="flex:1; min-width:120px;">
-          <div style="font-size:11px; color:var(--text-dim); margin-bottom:4px;" data-i18n="net_clients_label">Clienți activi</div>
-          <div style="font-family:'Outfit',sans-serif; font-size:20px; color:var(--success);" id="net-clients">0</div>
-        </div>
-      </div>
-      <div class="info-box">
-        <span data-i18n="info_network_hint">🔗 Conectează-te din orice browser în aceeași rețea Wi-Fi la</span>
-        <span style="color:var(--periwinkle);" id="net-url">http://&lt;IP&gt;:8080</span>
-        — nu este nevoie de instalare. IntelliGlass rulează direct ca server web pe Raspberry Pi.
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title">📱 <span data-i18n="card_devices">Dispozitive Conectate</span></div>
-      <div id="net-devices">
-        <div style="color:var(--text-dim); font-size:13px; padding:12px 0;">
-          <span data-i18n="net_no_devices">Niciun dispozitiv conectat. Conectează oglinda pentru a vedea clienții activi.</span>
-        </div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title">📶 <span data-i18n="card_wifi">Setări Wi-Fi Oglindă</span></div>
-      <div class="form-row-2">
-        <div>
-          <label data-i18n="lbl_ssid">Nume Rețea (SSID)</label>
-          <input type="text" id="wifi-ssid" value="" placeholder="Numele rețelei tale Wi-Fi">
-        </div>
-        <div>
-          <label data-i18n="lbl_wifipass">Parolă Wi-Fi</label>
-          <input type="password" id="wifi-pass" value="" placeholder="Parola rețelei">
-        </div>
-      </div>
-      <div class="info-box" style="margin-bottom:14px;">
-        <span data-i18n="info_wifi_warning">⚠ Modificarea credențialelor Wi-Fi va reporni modulul wireless al Raspberry Pi. Asigurați-vă că datele sunt corecte.</span>
-      </div>
-      <div class="btn-row">
-        <button class="btn btn-primary" data-i18n="btn_save_wifi" onclick="runCommand({type:'wifi_config', ssid: document.getElementById('wifi-ssid').value, pass:'***'}, (translations[currentLang]||translations.ro).toast_wifi)">
-          Salvează & Aplică Wi-Fi
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ─── SETTINGS ─── -->
-  <div id="sec-settings" class="section">
-    <div class="page-header">
-      <div class="page-title" data-i18n="page_settings">Setări Aplicație</div>
-      <div class="page-sub" data-i18n="page_settings_sub">Configurări globale pentru IntelliGlass, oglinda smart și integrările externe.</div>
-    </div>
-    <div class="accent-bar"></div>
-    <div class="grid-2">
-      <div class="card">
-        <div class="card-title">🌐 <span data-i18n="card_lang">Limbă & Regiune</span></div>
-        <div class="form-row">
-          <label data-i18n="lbl_lang">Limbă interfață</label>
-          <select id="set-lang" onchange="changeLang(this.value)">
-            <option value="ro">Română</option>
-            <option value="en" selected>English</option>
-            <option value="de">Deutsch</option>
-            <option value="hu">Magyar</option>
-          </select>
-        </div>
-        <div class="form-row">
-          <label data-i18n="lbl_dateformat">Format dată oglindă</label>
-          <select id="set-dateformat">
-            <option selected>Joi, 24 aprilie 2026</option>
-            <option>Thursday, April 24, 2026</option>
-            <option>Donnerstag, 24. April 2026</option>
-            <option>2026-04-24</option>
-          </select>
-        </div>
-        <div class="form-row">
-          <label data-i18n="lbl_timeformat">Format oră</label>
-          <select id="set-timeformat">
-            <option value="24" selected>24h — 14:30</option>
-            <option value="12">12h — 2:30 PM</option>
-          </select>
-        </div>
-        <div class="form-row">
-          <label data-i18n="lbl_timezone">Fus orar</label>
-          <select id="set-timezone">
-            <option selected>Europe/Bucharest (UTC+3)</option>
-            <option>UTC (UTC+0)</option>
-            <option>Europe/London (UTC+1)</option>
-            <option>Europe/Berlin (UTC+2)</option>
-          </select>
-        </div>
-        <div class="btn-row">
-          <button class="btn btn-primary" onclick="applyLocale()" data-i18n="btn_save_lang">Salvează Limbă & Regiune</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">🔑 <span data-i18n="card_apikeys">API Keys</span></div>
-        <div class="form-row">
-          <label data-i18n="lbl_owm">OpenWeatherMap API Key</label>
-          <input type="password" id="owm-key" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
-        </div>
-        <div class="form-row">
-          <label data-i18n="lbl_gcal">Google Calendar API Key</label>
-          <input type="password" id="gcal-key" placeholder="AIzaSy...">
-        </div>
-        <div class="form-row">
-          <label data-i18n="lbl_newsapi">NewsAPI Key (opțional)</label>
-          <input type="password" id="news-key" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
-        </div>
-        <div class="info-box" style="margin-bottom:14px;">
-          <span data-i18n="info_apikeys">🔒 Cheile API sunt stocate criptat pe Raspberry Pi și nu sunt transmise în rețea.</span>
-        </div>
-        <div class="btn-row">
-          <button class="btn btn-primary" onclick="saveAPIKeys()" data-i18n="btn_save_apikeys">Salvează Cheile API</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">🔒 <span data-i18n="card_security">Securitate & Access</span></div>
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:0;">
-        <div>
-          <div class="toggle-row">
-            <div>
-              <div class="toggle-info" data-i18n="tog_password">Parolă acces interfață web</div>
-              <div class="toggle-sub" data-i18n="tog_password_sub">Protejează panoul de control</div>
-            </div>
-            <div class="toggle-switch" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
-          </div>
-          <div class="toggle-row">
-            <div>
-              <div class="toggle-info" data-i18n="tog_localonly">Numai rețea locală</div>
-              <div class="toggle-sub" data-i18n="tog_localonly_sub">Blochează accesul din internet</div>
-            </div>
-            <div class="toggle-switch on" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
-          </div>
-        </div>
-        <div>
-          <div class="toggle-row">
-            <div>
-              <div class="toggle-info" data-i18n="tog_log">Log activitate utilizatori</div>
-              <div class="toggle-sub" data-i18n="tog_log_sub">Salvează acțiunile pe oglindă</div>
-            </div>
-            <div class="toggle-switch" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
-          </div>
-          <div class="toggle-row">
-            <div>
-              <div class="toggle-info" data-i18n="tog_autoupdate2">Actualizări automate</div>
-              <div class="toggle-sub" data-i18n="tog_autoupdate2_sub">Actualizare MagicMirror²</div>
-            </div>
-            <div class="toggle-switch on" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="grid-2">
-      <div class="card">
-        <div class="card-title">⚡ <span data-i18n="card_system">Control Sistem RPi4</span></div>
-        <div style="display:flex; gap:10px; flex-wrap:wrap;">
-          <button class="btn btn-ghost" onclick="runCommand({type:'restart_mm'}, '↺ MagicMirror² repornit!')" data-i18n="btn_restart_mm">Repornire MM²</button>
-          <button class="btn btn-ghost" onclick="runCommand({type:'reboot'}, '↺ RPi4 repornește...')" data-i18n="btn_reboot">Repornire RPi</button>
-          <button class="btn btn-ghost" onclick="runCommand({type:'shutdown'}, '⏻ Oprire programată...')" data-i18n="btn_shutdown">Oprire RPi</button>
-          <button class="btn btn-danger" onclick="confirmReset()" data-i18n="btn_factory_reset">Reset Fabrică</button>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-title">ℹ <span data-i18n="card_about">Despre IntelliGlass</span></div>
-        <div style="display:flex; flex-direction:column; gap:8px;">
-          <div style="display:flex; justify-content:space-between; font-size:13px;">
-            <span style="color:var(--text-dim);" data-i18n="about_version">Versiune</span>
-            <span>1.0.0 · Build 2026.04</span>
-          </div>
-          <div style="display:flex; justify-content:space-between; font-size:13px;">
-            <span style="color:var(--text-dim);" data-i18n="about_hardware">Hardware</span>
-            <span>Raspberry Pi 4 Model B · 4GB</span>
-          </div>
-          <div style="display:flex; justify-content:space-between; font-size:13px;">
-            <span style="color:var(--text-dim);" data-i18n="about_framework">Framework Oglindă</span>
-            <span style="color:var(--periwinkle);">MagicMirror² Open Source</span>
-          </div>
-          <div style="display:flex; justify-content:space-between; font-size:13px;">
-            <span style="color:var(--text-dim);" data-i18n="about_project">Proiect</span>
-            <span style="color:var(--periwinkle);">Kronsoft Innovation 2026</span>
-          </div>
-          <div style="display:flex; justify-content:space-between; font-size:13px;">
-            <span style="color:var(--text-dim);" data-i18n="about_protocol">Protocol comunicare</span>
-            <span>WebSocket + HTTP REST</span>
-          </div>
-        </div>
+        <span class="log-info">[IntelliGlass] <span data-i18n="ws_hint">Enter the Raspberry Pi IP and click Connect.</span></span><br>
       </div>
     </div>
   </div>
@@ -710,7 +126,7 @@
 <!-- TOAST -->
 <div class="toast" id="toast">
   <span id="toast-icon" style="font-size:16px;">✓</span>
-  <span id="toast-msg">Modificare aplicată!</span>
+  <span id="toast-msg">Change applied!</span>
 </div>
 
 <script src="js/script.js"></script>
