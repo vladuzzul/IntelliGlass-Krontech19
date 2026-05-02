@@ -27,7 +27,7 @@
 
   <div class="topbar-right">
     <div class="status-dot" id="conn-dot" style="background:#f87171;"></div>
-    <span class="status-label" id="conn-label" data-i18n="conn_disconnected">Deconectat</span>
+    <span class="status-label" id="conn-label" data-i18n="conn_disconnected">Disconnected</span>
   </div>
 </nav>
 
@@ -73,75 +73,51 @@
   <!-- ─── CALENDAR ─── -->
   <div id="sec-calendar" class="section visible">
     <div class="page-header">
-      <div class="page-title" data-i18n="page_calendar">Calendar & Mesaj</div>
-      <div class="page-sub" data-i18n="page_calendar_sub">Configurează Google Calendar și mesajul personal afișat pe oglindă.</div>
+      <div class="page-title" data-i18n="page_calendar">Calendar & Message</div>
+      <div class="page-sub" data-i18n="page_calendar_sub">Configure Google Calendar and the personal message displayed on the mirror.</div>
     </div>
     <div class="accent-bar"></div>
     <div class="grid-2">
       <div class="card">
-        <div class="card-title">📅 <span data-i18n="card_cal_settings">Setări Calendar</span></div>
-        <div class="device-card" style="margin-bottom:16px;">
-          <div class="device-icon">📅</div>
-          <div style="flex:1;">
-            <div class="device-name" data-i18n="wname_calendar">Google Calendar</div>
-            <div class="device-ip" data-i18n="cal_device_sub">Configurează URL-ul CalDAV sau integrarea Google</div>
-          </div>
-          <span class="badge badge-warn" data-i18n="badge_notconnected">Neconectat</span>
-        </div>
+        <div class="card-title">📅 <span data-i18n="card_cal_settings">Calendar Settings</span></div>
+        
         <div class="form-row">
           <label data-i18n="lbl_cal_url">URL Calendar (iCal / CalDAV)</label>
           <input type="text" id="cal-url" value="" placeholder="https://calendar.google.com/...">
         </div>
-        <div class="form-row-2">
-          <div>
-            <label data-i18n="lbl_events_shown">Evenimente afișate</label>
-            <select id="cal-events">
-              <option>3</option>
-              <option selected>5</option>
-              <option>7</option>
-            </select>
-          </div>
-          <div>
-            <label data-i18n="lbl_cal_range">Interval</label>
-            <select id="cal-range">
-              <option data-i18n="opt_today">Azi</option>
-              <option selected data-i18n="opt_today_tomorrow">Azi + Mâine</option>
-              <option data-i18n="opt_this_week">Săptămâna asta</option>
-            </select>
-          </div>
-        </div>
+
         <div class="btn-row">
-          <button class="btn btn-primary" onclick="applyCalendar()" data-i18n="btn_save_calendar">Salvează Calendar</button>
+          <button class="btn btn-primary" onclick="applyCalendar()" data-i18n="btn_save_calendar">Save Calendar</button>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-title">💬 Mesaj de Bun Venit</div>
+        <div class="card-title">💬 Custom Compliments</div>
+        <div style="font-size:12px; color:var(--text-dim); margin-bottom:16px;">
+          Add a message per line for each time of the day.
+        </div>
         <div class="form-row">
-          <label data-i18n="lbl_greeting">Mesajul afișat în centrul oglinzii</label>
-          <input type="text" id="greeting-input" value="Great to see you!" placeholder="Bun venit acasă!">
+          <label>Anytime</label>
+          <textarea id="compliments-anytime" placeholder="Great to see you!&#10;Always great to see you!" style="min-height:80px; font-family:monospace; font-size:11px;"></textarea>
         </div>
-        <div style="font-size:12px; color:var(--text-dim); margin-bottom:16px; line-height:1.6;">
-          Sugestii: <span style="color:var(--periwinkle); cursor:pointer;" onclick="setGreeting('Bun venit acasă!')" data-i18n="suggest1">Bun venit acasă!</span> ·
-          <span style="color:var(--periwinkle); cursor:pointer;" onclick="setGreeting('Zi bună, Vlad!')" data-i18n="suggest2">Zi bună!</span> ·
-          <span style="color:var(--periwinkle); cursor:pointer;" onclick="setGreeting('Have a great day!')" data-i18n="suggest3">Have a great day!</span>
+        <div class="form-row">
+          <label>Morning (03:00 - 12:00)</label>
+          <textarea id="compliments-morning" placeholder="Good morning!&#10;Have a great day!" style="min-height:80px; font-family:monospace; font-size:11px;"></textarea>
         </div>
-        <div class="toggle-row">
-          <div>
-            <div class="toggle-info" data-i18n="tog_timegreet">Salut bazat pe oră</div>
-            <div class="toggle-sub" data-i18n="tog_timegreet_sub">Dimineața / Ziua / Seara</div>
-          </div>
-          <div class="toggle-switch" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
+        <div class="form-row">
+          <label>Afternoon (12:00 - 17:00)</label>
+          <textarea id="compliments-afternoon" placeholder="Good afternoon!&#10;Looking great today!" style="min-height:80px; font-family:monospace; font-size:11px;"></textarea>
         </div>
-        <div class="toggle-row">
-          <div>
-            <div class="toggle-info" data-i18n="tog_username">Afișare nume utilizator</div>
-            <div class="toggle-sub" data-i18n="tog_username_sub">Recunoaștere facială necesară</div>
-          </div>
-          <div class="toggle-switch" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
+        <div class="form-row">
+          <label>Evening (17:00 - 03:00)</label>
+          <textarea id="compliments-evening" placeholder="Good evening!&#10;Lovely to see you!" style="min-height:80px; font-family:monospace; font-size:11px;"></textarea>
+        </div>
+        <div class="form-row">
+          <label>Change Interval (seconds)</label>
+          <input type="number" id="compliments-update-interval-seconds" min="1" max="86400" step="1" placeholder="90">
         </div>
         <div class="btn-row">
-          <button class="btn btn-primary" onclick="applyGreeting()" data-i18n="btn_apply_greeting">Aplică Mesajul</button>
+          <button class="btn btn-primary" onclick="applyCompliments()" data-i18n="btn_apply_greeting">Apply Compliments</button>
         </div>
       </div>
     </div>
@@ -153,7 +129,7 @@
 <!-- TOAST -->
 <div class="toast" id="toast">
   <span id="toast-icon" style="font-size:16px;">✓</span>
-  <span id="toast-msg">Modificare aplicată!</span>
+  <span id="toast-msg">Changes applied!</span>
 </div>
 
 <script src="js/script.js"></script>

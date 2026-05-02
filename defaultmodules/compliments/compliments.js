@@ -10,7 +10,7 @@ Module.register("compliments", {
 		evening: ["Good evening!", "Hope your day was wonderful!", "Lovely to see you!"],
 		"....-01-01": ["Happy New Year!"]
 	},
-		updateInterval: 90000,
+		updateInterval: 30000,
 		remoteFile: null,
 		remoteFileRefreshInterval: 0,
 		fadeSpeed: 4000,

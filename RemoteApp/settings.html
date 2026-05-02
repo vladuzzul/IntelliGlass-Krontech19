@@ -27,7 +27,7 @@
 
   <div class="topbar-right">
     <div class="status-dot" id="conn-dot" style="background:#f87171;"></div>
-    <span class="status-label" id="conn-label" data-i18n="conn_disconnected">Deconectat</span>
+    <span class="status-label" id="conn-label" data-i18n="conn_disconnected">Disconnected</span>
   </div>
 </nav>
 
@@ -73,15 +73,15 @@
   <!-- ─── SETTINGS ─── -->
   <div id="sec-settings" class="section visible">
     <div class="page-header">
-      <div class="page-title" data-i18n="page_settings">Setări Aplicație</div>
-      <div class="page-sub" data-i18n="page_settings_sub">Configurări globale pentru IntelliGlass, oglinda smart și integrările externe.</div>
+      <div class="page-title" data-i18n="page_settings">Application Settings</div>
+      <div class="page-sub" data-i18n="page_settings_sub">Global configurations for IntelliGlass, the smart mirror, and external integrations.</div>
     </div>
     <div class="accent-bar"></div>
     <div class="grid-2">
       <div class="card">
-        <div class="card-title">🌐 <span data-i18n="card_lang">Limbă & Regiune</span></div>
+        <div class="card-title">🌐 <span data-i18n="card_lang">Language & Region</span></div>
         <div class="form-row">
-          <label data-i18n="lbl_lang">Limbă interfață</label>
+          <label data-i18n="lbl_lang">Interface Language</label>
           <select id="set-lang" onchange="changeLang(this.value)">
             <option value="ro">Română</option>
             <option value="en" selected>English</option>
@@ -89,128 +89,45 @@
             <option value="hu">Magyar</option>
           </select>
         </div>
+        
         <div class="form-row">
-          <label data-i18n="lbl_dateformat">Format dată oglindă</label>
-          <select id="set-dateformat">
-            <option selected>Joi, 24 aprilie 2026</option>
-            <option>Thursday, April 24, 2026</option>
-            <option>Donnerstag, 24. April 2026</option>
-            <option>2026-04-24</option>
-          </select>
-        </div>
-        <div class="form-row">
-          <label data-i18n="lbl_timeformat">Format oră</label>
+          <label data-i18n="lbl_timeformat">Time Format</label>
           <select id="set-timeformat">
             <option value="24" selected>24h — 14:30</option>
             <option value="12">12h — 2:30 PM</option>
           </select>
         </div>
-        <div class="form-row">
-          <label data-i18n="lbl_timezone">Fus orar</label>
-          <select id="set-timezone">
-            <option selected>Europe/Bucharest (UTC+3)</option>
-            <option>UTC (UTC+0)</option>
-            <option>Europe/London (UTC+1)</option>
-            <option>Europe/Berlin (UTC+2)</option>
-          </select>
-        </div>
         <div class="btn-row">
-          <button class="btn btn-primary" onclick="applyLocale()" data-i18n="btn_save_lang">Salvează Limbă & Regiune</button>
+          <button class="btn btn-primary" onclick="applyLocale()" data-i18n="btn_save_lang">Save Format Settings</button>
         </div>
       </div>
 
-      <div class="card">
-        <div class="card-title">🔑 <span data-i18n="card_apikeys">API Keys</span></div>
-        <div class="form-row">
-          <label data-i18n="lbl_owm">OpenWeatherMap API Key</label>
-          <input type="password" id="owm-key" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
-        </div>
-        <div class="form-row">
-          <label data-i18n="lbl_gcal">Google Calendar API Key</label>
-          <input type="password" id="gcal-key" placeholder="AIzaSy...">
-        </div>
-        <div class="form-row">
-          <label data-i18n="lbl_newsapi">NewsAPI Key (opțional)</label>
-          <input type="password" id="news-key" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
-        </div>
-        <div class="info-box" style="margin-bottom:14px;">
-          <span data-i18n="info_apikeys">🔒 Cheile API sunt stocate criptat pe Raspberry Pi și nu sunt transmise în rețea.</span>
-        </div>
-        <div class="btn-row">
-          <button class="btn btn-primary" onclick="saveAPIKeys()" data-i18n="btn_save_apikeys">Salvează Cheile API</button>
-        </div>
-      </div>
-    </div>
 
-    <div class="card">
-      <div class="card-title">🔒 <span data-i18n="card_security">Securitate & Access</span></div>
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:0;">
-        <div>
-          <div class="toggle-row">
-            <div>
-              <div class="toggle-info" data-i18n="tog_password">Parolă acces interfață web</div>
-              <div class="toggle-sub" data-i18n="tog_password_sub">Protejează panoul de control</div>
-            </div>
-            <div class="toggle-switch" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
-          </div>
-          <div class="toggle-row">
-            <div>
-              <div class="toggle-info" data-i18n="tog_localonly">Numai rețea locală</div>
-              <div class="toggle-sub" data-i18n="tog_localonly_sub">Blochează accesul din internet</div>
-            </div>
-            <div class="toggle-switch on" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
-          </div>
-        </div>
-        <div>
-          <div class="toggle-row">
-            <div>
-              <div class="toggle-info" data-i18n="tog_log">Log activitate utilizatori</div>
-              <div class="toggle-sub" data-i18n="tog_log_sub">Salvează acțiunile pe oglindă</div>
-            </div>
-            <div class="toggle-switch" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
-          </div>
-          <div class="toggle-row">
-            <div>
-              <div class="toggle-info" data-i18n="tog_autoupdate2">Actualizări automate</div>
-              <div class="toggle-sub" data-i18n="tog_autoupdate2_sub">Actualizare MagicMirror²</div>
-            </div>
-            <div class="toggle-switch on" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
-          </div>
-        </div>
-      </div>
-    </div>
+    
 
     <div class="grid-2">
+      
       <div class="card">
-        <div class="card-title">⚡ <span data-i18n="card_system">Control Sistem RPi4</span></div>
-        <div style="display:flex; gap:10px; flex-wrap:wrap;">
-          <button class="btn btn-ghost" onclick="runCommand({type:'restart_mm'}, '↺ MagicMirror² repornit!')" data-i18n="btn_restart_mm">Repornire MM²</button>
-          <button class="btn btn-ghost" onclick="runCommand({type:'reboot'}, '↺ RPi4 repornește...')" data-i18n="btn_reboot">Repornire RPi</button>
-          <button class="btn btn-ghost" onclick="runCommand({type:'shutdown'}, '⏻ Oprire programată...')" data-i18n="btn_shutdown">Oprire RPi</button>
-          <button class="btn btn-danger" onclick="confirmReset()" data-i18n="btn_factory_reset">Reset Fabrică</button>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-title">ℹ <span data-i18n="card_about">Despre IntelliGlass</span></div>
+        <div class="card-title">ℹ <span data-i18n="card_about">About IntelliGlass</span></div>
         <div style="display:flex; flex-direction:column; gap:8px;">
           <div style="display:flex; justify-content:space-between; font-size:13px;">
-            <span style="color:var(--text-dim);" data-i18n="about_version">Versiune</span>
+            <span style="color:var(--text-dim);" data-i18n="about_version">Version</span>
             <span>1.0.0 · Build 2026.04</span>
           </div>
           <div style="display:flex; justify-content:space-between; font-size:13px;">
             <span style="color:var(--text-dim);" data-i18n="about_hardware">Hardware</span>
-            <span>Raspberry Pi 4 Model B · 4GB</span>
+            <span>Raspberry Pi 4 Model B · 4GB + Camera v3</span>
           </div>
           <div style="display:flex; justify-content:space-between; font-size:13px;">
-            <span style="color:var(--text-dim);" data-i18n="about_framework">Framework Oglindă</span>
+            <span style="color:var(--text-dim);" data-i18n="about_framework">Framework Mirror</span>
             <span style="color:var(--periwinkle);">MagicMirror² Open Source</span>
           </div>
           <div style="display:flex; justify-content:space-between; font-size:13px;">
-            <span style="color:var(--text-dim);" data-i18n="about_project">Proiect</span>
-            <span style="color:var(--periwinkle);">Kronsoft Innovation 2026</span>
+            <span style="color:var(--text-dim);" data-i18n="about_project">Project</span>
+            <span style="color:var(--periwinkle);">Krontech Team 19</span>
           </div>
           <div style="display:flex; justify-content:space-between; font-size:13px;">
-            <span style="color:var(--text-dim);" data-i18n="about_protocol">Protocol comunicare</span>
+            <span style="color:var(--text-dim);" data-i18n="about_protocol">Communication Protocol</span>
             <span>WebSocket + HTTP REST</span>
           </div>
         </div>
@@ -224,7 +141,7 @@
 <!-- TOAST -->
 <div class="toast" id="toast">
   <span id="toast-icon" style="font-size:16px;">✓</span>
-  <span id="toast-msg">Modificare aplicată!</span>
+  <span id="toast-msg">Change applied!</span>
 </div>
 
 <script src="js/script.js"></script>

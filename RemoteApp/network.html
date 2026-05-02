@@ -27,7 +27,7 @@
 
   <div class="topbar-right">
     <div class="status-dot" id="conn-dot" style="background:#f87171;"></div>
-    <span class="status-label" id="conn-label" data-i18n="conn_disconnected">Deconectat</span>
+    <span class="status-label" id="conn-label" data-i18n="conn_disconnected">Disconnected</span>
   </div>
 </nav>
 
@@ -74,15 +74,15 @@
   <!-- ─── NETWORK ─── -->
   <div id="sec-network" class="section visible">
     <div class="page-header">
-      <div class="page-title" data-i18n="page_network">Rețea & Conectivitate</div>
-      <div class="page-sub" data-i18n="page_network_sub">Gestionează conexiunea Wi-Fi și dispozitivele conectate la oglinda smart.</div>
+      <div class="page-title" data-i18n="page_network">Network & Connectivity</div>
+      <div class="page-sub" data-i18n="page_network_sub">Manage the Wi-Fi connection and connected devices on the smart mirror.</div>
     </div>
     <div class="accent-bar"></div>
     <div class="card">
-      <div class="card-title">📡 <span data-i18n="card_server">Server Web — Raspberry Pi 4</span></div>
+      <div class="card-title">📡 <span data-i18n="card_server">Web Server — Raspberry Pi 4</span></div>
       <div style="display:flex; gap:18px; flex-wrap:wrap; margin-bottom:18px;">
         <div style="flex:1; min-width:120px;">
-          <div style="font-size:11px; color:var(--text-dim); margin-bottom:4px;" data-i18n="net_ip_label">IP Oglindă</div>
+          <div style="font-size:11px; color:var(--text-dim); margin-bottom:4px;" data-i18n="net_ip_label">Mirror IP</div>
           <div style="font-family:'Outfit',sans-serif; font-size:20px; color:var(--periwinkle);" id="net-ip">—</div>
         </div>
         <div style="flex:1; min-width:120px;">
@@ -94,43 +94,14 @@
           <div style="font-family:'Outfit',sans-serif; font-size:20px; color:var(--periwinkle);">HTTP/WS</div>
         </div>
         <div style="flex:1; min-width:120px;">
-          <div style="font-size:11px; color:var(--text-dim); margin-bottom:4px;" data-i18n="net_clients_label">Clienți activi</div>
+          <div style="font-size:11px; color:var(--text-dim); margin-bottom:4px;" data-i18n="net_clients_label">Active Clients</div>
           <div style="font-family:'Outfit',sans-serif; font-size:20px; color:var(--success);" id="net-clients">0</div>
         </div>
       </div>
       <div class="info-box">
-        <span data-i18n="info_network_hint">🔗 Conectează-te din orice browser în aceeași rețea Wi-Fi la</span>
+        <span data-i18n="info_network_hint">🔗 Connect from any browser on the same Wi-Fi network to</span>
         <span style="color:var(--periwinkle);" id="net-url">http://&lt;IP&gt;:8080</span>
-        — nu este nevoie de instalare. IntelliGlass rulează direct ca server web pe Raspberry Pi.
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title">📱 <span data-i18n="card_devices">Dispozitive Conectate</span></div>
-      <div id="net-devices">
-        <div style="color:var(--text-dim); font-size:13px; padding:12px 0;">
-          <span data-i18n="net_no_devices">Niciun dispozitiv conectat. Conectează oglinda pentru a vedea clienții activi.</span>
-        </div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title">📶 <span data-i18n="card_wifi">Setări Wi-Fi Oglindă</span></div>
-      <div class="form-row-2">
-        <div>
-          <label data-i18n="lbl_ssid">Nume Rețea (SSID)</label>
-          <input type="text" id="wifi-ssid" value="" placeholder="Numele rețelei tale Wi-Fi">
-        </div>
-        <div>
-          <label data-i18n="lbl_wifipass">Parolă Wi-Fi</label>
-          <input type="password" id="wifi-pass" value="" placeholder="Parola rețelei">
-        </div>
-      </div>
-      <div class="info-box" style="margin-bottom:14px;">
-        <span data-i18n="info_wifi_warning">⚠ Modificarea credențialelor Wi-Fi va reporni modulul wireless al Raspberry Pi. Asigurați-vă că datele sunt corecte.</span>
-      </div>
-      <div class="btn-row">
-        <button class="btn btn-primary" data-i18n="btn_save_wifi" onclick="runCommand({type:'wifi_config', ssid: document.getElementById('wifi-ssid').value, pass:'***'}, (translations[currentLang]||translations.ro).toast_wifi)">
-          Salvează & Aplică Wi-Fi
-        </button>
+        — no installation required. IntelliGlass runs directly as a web server on the Raspberry Pi.
       </div>
     </div>
   </div>

@@ -111,32 +111,266 @@ function replaceNumberField (block, key, value) {
 	return block.replace(regex, `$1${value}`);
 }
 
-function replaceStringField (block, key, value) {
-	const regex = new RegExp(`(${key}\\s*:\\s*)(["'])([^"']*)(\\2)`);
-	if (!regex.test(block)) return block;
-	return block.replace(regex, `$1"${escapeForDoubleQuote(value)}"`);
+function findMatchingBracket (source, openIndex) {
+	if (openIndex < 0 || openIndex >= source.length || source[openIndex] !== "[") return -1;
+	let bracketDepth = 0;
+	let inString = null;
+	let escape = false;
+
+	for (let i = openIndex; i < source.length; i++) {
+		const ch = source[i];
+		if (inString) {
+			if (escape) {
+				escape = false;
+				continue;
+			}
+			if (ch === "\\") {
+				escape = true;
+				continue;
+			}
+			if (ch === inString) inString = null;
+			continue;
+		}
+		if (ch === "\"" || ch === "'" || ch === "`") {
+			inString = ch;
+			continue;
+		}
+		if (ch === "[") {
+			bracketDepth += 1;
+			continue;
+		}
+		if (ch === "]") {
+			bracketDepth -= 1;
+			if (bracketDepth === 0) return i;
+		}
+	}
+
+	return -1;
 }
 
-function buildFeedsBlock (urls, indent) {
-	if (!Array.isArray(urls) || urls.length === 0) {
+function replaceCalendarUrl (block, value) {
+	const calendarsMatch = block.match(/(\r?\n[ \t]*)calendars\s*:\s*\[/);
+	if (!calendarsMatch || typeof calendarsMatch.index !== "number") return block;
+
+	const calendarsIndent = calendarsMatch[1].replace(/\r?\n/, "");
+	const eol = calendarsMatch[1].includes("\r\n") ? "\r\n" : "\n";
+	const arrayStart = block.indexOf("[", calendarsMatch.index);
+	const arrayEnd = findMatchingBracket(block, arrayStart);
+	if (arrayStart === -1 || arrayEnd === -1) return block;
+
+	const arrayChunk = block.slice(arrayStart, arrayEnd + 1);
+	const escapedUrl = escapeForDoubleQuote(value);
+	const urlRegex = /(url\s*:\s*)(["'])([^"']*)(\2)/;
+	if (urlRegex.test(arrayChunk)) {
+		const replacedArray = arrayChunk.replace(urlRegex, `$1"${escapedUrl}"`);
+		return block.slice(0, arrayStart) + replacedArray + block.slice(arrayEnd + 1);
+	}
+
+	const firstObjStart = arrayChunk.indexOf("{");
+	if (firstObjStart !== -1) {
+		const firstObjEnd = findMatchingBrace(arrayChunk, firstObjStart);
+		if (firstObjEnd !== -1) {
+			const objectIndent = `${calendarsIndent}\t\t`;
+			const insert = `${eol}${objectIndent}url: "${escapedUrl}",`;
+			const replacedArray = arrayChunk.slice(0, firstObjStart + 1) + insert + arrayChunk.slice(firstObjStart + 1);
+			return block.slice(0, arrayStart) + replacedArray + block.slice(arrayEnd + 1);
+		}
+	}
+
+	const entryIndent = `${calendarsIndent}\t`;
+	const fieldIndent = `${calendarsIndent}\t\t`;
+	const newArray = `[${eol}${entryIndent}{${eol}${fieldIndent}url: "${escapedUrl}"${eol}${entryIndent}}${eol}${calendarsIndent}]`;
+	return block.slice(0, arrayStart) + newArray + block.slice(arrayEnd + 1);
+}
+
+function buildFeedsBlock (feeds, indent, eol) {
+	const line = eol || "\n";
+	if (!Array.isArray(feeds) || feeds.length === 0) {
 		return `${indent}feeds: []`;
 	}
 	const feedIndent = `${indent}\t`;
 	const entryIndent = `${indent}\t\t`;
-	const entries = urls.map((url, index) => {
-		const title = `Feed ${index + 1}`;
-		return `${feedIndent}{\n${entryIndent}title: "${escapeForDoubleQuote(title)}",\n${entryIndent}url: "${escapeForDoubleQuote(url)}"\n${feedIndent}}`;
-	}).join(",\n");
+	const entries = feeds.map((feed, index) => {
+		const url = typeof feed === "string" ? feed : feed && feed.url;
+		if (!url) return null;
+		const rawTitleValue = feed && typeof feed === "object"
+			? (typeof feed.title !== "undefined" ? feed.title : (typeof feed.name !== "undefined" ? feed.name : feed.label))
+			: "";
+		const rawTitle = rawTitleValue != null ? String(rawTitleValue).trim() : "";
+		const title = rawTitle ? rawTitle : `Feed ${index + 1}`;
+		return `${feedIndent}{${line}${entryIndent}title: "${escapeForDoubleQuote(title)}",${line}${entryIndent}url: "${escapeForDoubleQuote(url)}"${line}${feedIndent}}`;
+	}).filter(Boolean).join(`,${line}`);
+	if (!entries) return `${indent}feeds: []`;
 
-	return `${indent}feeds: [\n${entries}\n${indent}]`;
+	return `${indent}feeds: [${line}${entries}${line}${indent}]`;
 }
 
-function replaceFeedsBlock (block, urls) {
-	const match = block.match(/(\n[ \t]*)feeds\s*:\s*\[[\s\S]*?\]/);
+function replaceFeedsBlock (block, feeds) {
+	const match = block.match(/(\r?\n[ \t]*)feeds\s*:\s*\[[\s\S]*?\]/);
 	if (!match) return block;
-	const indent = match[1];
-	const feedsBlock = buildFeedsBlock(urls, indent);
-	return block.replace(match[0], `\n${feedsBlock}`);
+	const indent = match[1].replace(/\r?\n/, "");
+	const eol = match[1].includes("\r\n") ? "\r\n" : "\n";
+	const feedsBlock = buildFeedsBlock(feeds, indent, eol);
+	return block.replace(match[0], `${eol}${feedsBlock}`);
+}
+
+function findMatchingBrace (source, openIndex) {
+	if (openIndex < 0 || openIndex >= source.length || source[openIndex] !== "{") return -1;
+	let braceDepth = 0;
+	let inString = null;
+	let escape = false;
+
+	for (let i = openIndex; i < source.length; i++) {
+		const ch = source[i];
+		if (inString) {
+			if (escape) {
+				escape = false;
+				continue;
+			}
+			if (ch === "\\") {
+				escape = true;
+				continue;
+			}
+			if (ch === inString) inString = null;
+			continue;
+		}
+		if (ch === "\"" || ch === "'" || ch === "`") {
+			inString = ch;
+			continue;
+		}
+		if (ch === "{") {
+			braceDepth += 1;
+			continue;
+		}
+		if (ch === "}") {
+			braceDepth -= 1;
+			if (braceDepth === 0) return i;
+		}
+	}
+
+	return -1;
+}
+
+function normalizeComplimentsPayload (rawCompliments) {
+	if (!rawCompliments || typeof rawCompliments !== "object") return null;
+
+	const groups = ["anytime", "morning", "afternoon", "evening"];
+	const normalized = {};
+	let hasValues = false;
+
+	for (const group of groups) {
+		const entries = Array.isArray(rawCompliments[group]) ? rawCompliments[group] : [];
+		const cleaned = entries
+			.map((entry) => entry == null ? "" : String(entry).trim())
+			.filter((entry) => entry.length > 0)
+			.slice(0, 100);
+		normalized[group] = cleaned;
+		if (cleaned.length > 0) hasValues = true;
+	}
+
+	const rawIntervalSeconds = Number(rawCompliments.updateIntervalSeconds);
+	const hasValidInterval = Number.isFinite(rawIntervalSeconds)
+		&& Number.isInteger(rawIntervalSeconds)
+		&& rawIntervalSeconds >= 1
+		&& rawIntervalSeconds <= 86400;
+
+	if (!hasValues && !hasValidInterval) return null;
+
+	return {
+		compliments: hasValues ? normalized : null,
+		updateIntervalMs: hasValidInterval ? rawIntervalSeconds * 1000 : null
+	};
+}
+
+function buildComplimentsArray (items, indent, eol) {
+	const line = eol || "\n";
+	if (!Array.isArray(items) || items.length === 0) return "[]";
+	const values = items.map((item) => `${indent}\t"${escapeForDoubleQuote(item)}"`).join(`,${line}`);
+	return `[${line}${values}${line}${indent}]`;
+}
+
+function buildComplimentsConfigBlock (compliments, indent, eol) {
+	const line = eol || "\n";
+	const keys = ["anytime", "morning", "afternoon", "evening"];
+	const groupIndent = `${indent}\t`;
+	const entries = keys.map((key) => {
+		const values = Array.isArray(compliments[key]) ? compliments[key] : [];
+		const arr = buildComplimentsArray(values, `${groupIndent}\t`, line);
+		return `${groupIndent}${key}: ${arr}`;
+	}).join(`,${line}`);
+	return `${indent}compliments: {${line}${entries}${line}${indent}}`;
+}
+
+function replaceComplimentsBlock (block, compliments) {
+	const eol = block.includes("\r\n") ? "\r\n" : "\n";
+	const complimentsMatch = block.match(/(\r?\n[ \t]*)compliments\s*:\s*\{/);
+	if (complimentsMatch && typeof complimentsMatch.index === "number") {
+		const indent = complimentsMatch[1].replace(/\r?\n/, "");
+		const openBraceIndex = block.indexOf("{", complimentsMatch.index);
+		const closeBraceIndex = findMatchingBrace(block, openBraceIndex);
+		if (openBraceIndex === -1 || closeBraceIndex === -1) return block;
+		const replacement = `${eol}${buildComplimentsConfigBlock(compliments, indent, eol)}`;
+		return block.slice(0, complimentsMatch.index) + replacement + block.slice(closeBraceIndex + 1);
+	}
+
+	const configMatch = block.match(/(\r?\n[ \t]*)config\s*:\s*\{/);
+	if (configMatch && typeof configMatch.index === "number") {
+		const configIndent = configMatch[1].replace(/\r?\n/, "");
+		const openBraceIndex = block.indexOf("{", configMatch.index);
+		const closeBraceIndex = findMatchingBrace(block, openBraceIndex);
+		if (openBraceIndex === -1 || closeBraceIndex === -1) return block;
+		const insertIndent = `${configIndent}\t`;
+		const insert = `${eol}${buildComplimentsConfigBlock(compliments, insertIndent, eol)},`;
+		return block.slice(0, openBraceIndex + 1) + insert + block.slice(openBraceIndex + 1);
+	}
+
+	const moduleMatch = block.match(/(\r?\n[ \t]*)module\s*:\s*["']compliments["']/);
+	if (!moduleMatch || typeof moduleMatch.index !== "number") return block;
+	const moduleIndent = moduleMatch[1].replace(/\r?\n/, "");
+	const configIndent = `${moduleIndent}\t`;
+	const moduleCloseIndex = block.lastIndexOf("}");
+	if (moduleCloseIndex === -1) return block;
+
+	const blockBeforeClose = block.slice(0, moduleCloseIndex).trimEnd();
+	const lastCharBeforeClose = blockBeforeClose.slice(-1);
+	const separator = (lastCharBeforeClose !== "{" && lastCharBeforeClose !== ",") ? `,${eol}` : eol;
+	const configBlock = `${separator}${configIndent}config: {${eol}${buildComplimentsConfigBlock(compliments, `${configIndent}\t`, eol)}${eol}${configIndent}},`;
+	return block.slice(0, moduleCloseIndex) + configBlock + block.slice(moduleCloseIndex);
+}
+
+function upsertComplimentsUpdateInterval (block, updateIntervalMs) {
+	if (!Number.isFinite(updateIntervalMs) || updateIntervalMs < 1000) return block;
+	const interval = Math.round(updateIntervalMs);
+	const eol = block.includes("\r\n") ? "\r\n" : "\n";
+
+	const existingMatch = block.match(/(\r?\n[ \t]*)updateInterval\s*:\s*[^,\r\n]+(,?)/);
+	if (existingMatch) {
+		const indent = existingMatch[1];
+		const trailingComma = existingMatch[2] || ",";
+		return block.replace(existingMatch[0], `${indent}updateInterval: ${interval}${trailingComma}`);
+	}
+
+	const configMatch = block.match(/(\r?\n[ \t]*)config\s*:\s*\{/);
+	if (configMatch && typeof configMatch.index === "number") {
+		const configIndent = configMatch[1].replace(/\r?\n/, "");
+		const openBraceIndex = block.indexOf("{", configMatch.index);
+		if (openBraceIndex === -1) return block;
+		const insertLine = `${eol}${configIndent}\tupdateInterval: ${interval},`;
+		return block.slice(0, openBraceIndex + 1) + insertLine + block.slice(openBraceIndex + 1);
+	}
+
+	const moduleMatch = block.match(/(\r?\n[ \t]*)module\s*:\s*["']compliments["']/);
+	if (!moduleMatch || typeof moduleMatch.index !== "number") return block;
+	const moduleIndent = moduleMatch[1].replace(/\r?\n/, "");
+	const configIndent = `${moduleIndent}\t`;
+	const moduleCloseIndex = block.lastIndexOf("}");
+	if (moduleCloseIndex === -1) return block;
+
+	const blockBeforeClose = block.slice(0, moduleCloseIndex).trimEnd();
+	const lastCharBeforeClose = blockBeforeClose.slice(-1);
+	const separator = (lastCharBeforeClose !== "{" && lastCharBeforeClose !== ",") ? `,${eol}` : eol;
+	const configBlock = `${separator}${configIndent}config: {${eol}${configIndent}\tupdateInterval: ${interval},${eol}${configIndent}},`;
+	return block.slice(0, moduleCloseIndex) + configBlock + block.slice(moduleCloseIndex);
 }
 
 /**
@@ -339,8 +573,21 @@ function Server (configObj) {
 				const newsfeed = payload.newsfeed || null;
 				if (newsfeed && Array.isArray(newsfeed.feeds)) {
 					const feeds = newsfeed.feeds
-						.map((feed) => (typeof feed === "string" ? feed.trim() : ""))
-						.filter((feed) => feed && /^https?:\/\//.test(feed));
+						.map((feed) => {
+							if (typeof feed === "string") {
+								return { title: "", url: feed.trim() };
+							}
+							if (feed && typeof feed === "object") {
+								const url = typeof feed.url === "string" ? feed.url.trim() : "";
+								const titleValue = typeof feed.title !== "undefined"
+									? feed.title
+									: (typeof feed.name !== "undefined" ? feed.name : feed.label);
+								const title = titleValue != null ? String(titleValue).trim() : "";
+								return { title, url };
+							}
+							return null;
+						})
+						.filter((feed) => feed && feed.url && /^https?:\/\//.test(feed.url));
 					updates.newsfeed = { feeds };
 				}
 
@@ -356,6 +603,11 @@ function Server (configObj) {
 					if (tf === 12 || tf === 24) {
 						updates.locale = Object.assign(updates.locale || {}, { timeFormat: tf });
 					}
+				}
+
+				const complimentsUpdate = normalizeComplimentsPayload(payload.compliments);
+				if (complimentsUpdate) {
+					updates.compliments = complimentsUpdate;
 				}
 
 				if (Object.keys(updates).length === 0) {
@@ -376,6 +628,7 @@ function Server (configObj) {
 					let weatherCount = 0;
 					let calendarCount = 0;
 					let newsfeedCount = 0;
+					let complimentsCount = 0;
 					let localeChanged = false;
 
 					if (updates.locale && updates.locale.language) {
@@ -409,13 +662,23 @@ function Server (configObj) {
 						}
 
 						if (moduleName === "calendar" && updates.calendar) {
-							updatedBlock = replaceStringField(updatedBlock, "url", updates.calendar.url);
+							updatedBlock = replaceCalendarUrl(updatedBlock, updates.calendar.url);
 							if (updatedBlock !== block) calendarCount += 1;
 						}
 
 						if (moduleName === "newsfeed" && updates.newsfeed) {
 							updatedBlock = replaceFeedsBlock(updatedBlock, updates.newsfeed.feeds);
 							if (updatedBlock !== block) newsfeedCount += 1;
+						}
+
+						if (moduleName === "compliments" && updates.compliments) {
+							if (updates.compliments.compliments) {
+								updatedBlock = replaceComplimentsBlock(updatedBlock, updates.compliments.compliments);
+							}
+							if (Number.isFinite(updates.compliments.updateIntervalMs)) {
+								updatedBlock = upsertComplimentsUpdateInterval(updatedBlock, updates.compliments.updateIntervalMs);
+							}
+							if (updatedBlock !== block) complimentsCount += 1;
 						}
 
 						if (updatedBlock !== block) {
@@ -428,7 +691,7 @@ function Server (configObj) {
 						const clients = io && io.engine ? io.engine.clientsCount : 0;
 						res.status(200).json({
 							ok: true,
-							updated: { weather: 0, calendar: 0, newsfeed: 0, locale: false },
+							updated: { weather: 0, calendar: 0, newsfeed: 0, compliments: 0, locale: false },
 							reloaded: false,
 							clients
 						});
@@ -449,7 +712,7 @@ function Server (configObj) {
 						}
 						res.status(200).json({
 							ok: true,
-							updated: { weather: weatherCount, calendar: calendarCount, newsfeed: newsfeedCount, locale: localeChanged },
+							updated: { weather: weatherCount, calendar: calendarCount, newsfeed: newsfeedCount, compliments: complimentsCount, locale: localeChanged },
 							reloaded: clients > 0,
 							clients
 						});

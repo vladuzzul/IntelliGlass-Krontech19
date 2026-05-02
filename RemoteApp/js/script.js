@@ -243,7 +243,9 @@ async function fetchStatus() {
     if (!res.ok) throw new Error('status ' + res.status);
     const data = await res.json();
     if (data && typeof data.clients === 'number') {
-      setText('net-clients', Math.max(0, Math.round(data.clients)));
+      const clientCount = Math.max(0, Math.round(data.clients));
+      setText('net-clients', clientCount);
+      setMirrorStatus(clientCount > 0);
     }
   } catch (e) {
     wsLog('[!] Status fetch failed: ' + sanitize(e.message || 'error'), 'err');
@@ -421,7 +423,11 @@ async function updateConfig(payload) {
 }
 
 function handleApplyResult(result) {
-  if (!result || !result.ok) return false;
+  if (!result || !result.ok) {
+    const errMsg = result && result.error ? String(result.error) : 'Update failed';
+    showToast(errMsg, true);
+    return false;
+  }
   if (result.reloaded) {
     showToast((translations[currentLang] || translations.ro).toast_reload);
     return true;
@@ -445,7 +451,55 @@ async function fetchConfigSnapshot() {
   }
 }
 
+function getPrimaryCalendarUrl(config) {
+  if (!config || !Array.isArray(config.modules)) return '';
+
+  for (const mod of config.modules) {
+    if (!mod || mod.module !== 'calendar' || !mod.config || !Array.isArray(mod.config.calendars)) continue;
+    for (const cal of mod.config.calendars) {
+      if (cal && typeof cal.url === 'string') return cal.url;
+    }
+  }
+  return '';
+}
+
+function updateOverviewStatsFromConfig(config) {
+  if (!config || !Array.isArray(config.modules)) {
+    setText('stat-weather', 'Not set');
+    setText('stat-news', '0 feeds');
+    setText('stat-calendar', 'Not set');
+    return;
+  }
+
+  let weatherText = 'Not set';
+  const weatherModule = config.modules.find((mod) => mod.module === 'weather' && mod.config);
+  if (weatherModule && weatherModule.config) {
+    const lat = Number(weatherModule.config.lat);
+    const lon = Number(weatherModule.config.lon);
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
+      weatherText = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+    }
+  }
+  setText('stat-weather', weatherText);
+
+  let feedCount = 0;
+  const newsModule = config.modules.find((mod) => mod.module === 'newsfeed' && mod.config && Array.isArray(mod.config.feeds));
+  if (newsModule && Array.isArray(newsModule.config.feeds)) {
+    feedCount = newsModule.config.feeds.filter((feed) => {
+      if (typeof feed === 'string') return feed.trim();
+      if (feed && typeof feed.url === 'string') return feed.url.trim();
+      return false;
+    }).length;
+  }
+  setText('stat-news', `${feedCount} feeds`);
+
+  const calendarUrl = getPrimaryCalendarUrl(config);
+  const calendarText = (typeof calendarUrl === 'string' && calendarUrl.trim()) ? 'Configured' : 'Not set';
+  setText('stat-calendar', calendarText);
+}
+
 function applyConfigToUI(config) {
+  updateOverviewStatsFromConfig(config);
   if (!config || !Array.isArray(config.modules)) return;
 
   const weatherModule = config.modules.find((mod) => mod.module === 'weather' && mod.config);
@@ -471,20 +525,64 @@ function applyConfigToUI(config) {
     }
   }
 
-  const calendarModule = config.modules.find((mod) => mod.module === 'calendar' && mod.config && Array.isArray(mod.config.calendars));
-  if (calendarModule && calendarModule.config.calendars.length > 0) {
-    const calInput = document.getElementById('cal-url');
-    const calUrl = calendarModule.config.calendars[0].url;
-    if (calInput && typeof calUrl === 'string') calInput.value = calUrl;
+  const calInput = document.getElementById('cal-url');
+  if (calInput) {
+    const calUrl = getPrimaryCalendarUrl(config);
+    if (typeof calUrl === 'string') calInput.value = calUrl;
+  }
+
+  const complimentsModule = config.modules.find((mod) => mod.module === 'compliments');
+  const complimentsConfig = complimentsModule && complimentsModule.config && typeof complimentsModule.config === 'object'
+    ? complimentsModule.config
+    : null;
+  if (complimentsConfig && complimentsConfig.compliments && typeof complimentsConfig.compliments === 'object') {
+    const setGroupValue = (id, values) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.value = Array.isArray(values)
+        ? values
+          .map((entry) => (entry == null ? '' : String(entry)))
+          .filter((entry) => entry.trim().length > 0)
+          .join('\n')
+        : '';
+    };
+    const groups = complimentsConfig.compliments;
+    setGroupValue('compliments-anytime', groups.anytime);
+    setGroupValue('compliments-morning', groups.morning);
+    setGroupValue('compliments-afternoon', groups.afternoon);
+    setGroupValue('compliments-evening', groups.evening);
+  }
+  const complimentsIntervalInput = document.getElementById('compliments-update-interval-seconds');
+  if (complimentsIntervalInput) {
+    const rawInterval = complimentsConfig ? Number(complimentsConfig.updateInterval) : NaN;
+    if (Number.isFinite(rawInterval) && rawInterval > 0) {
+      const intervalSec = Math.max(1, Math.round(rawInterval / 1000));
+      complimentsIntervalInput.value = String(intervalSec);
+    } else if (!String(complimentsIntervalInput.value || '').trim()) {
+      // Initialize only once; avoid overwriting the user's typed value if backend returned no interval.
+      complimentsIntervalInput.value = '90';
+    }
   }
 
   const newsModule = config.modules.find((mod) => mod.module === 'newsfeed' && mod.config && Array.isArray(mod.config.feeds));
   if (newsModule) {
-    const feeds = newsModule.config.feeds.map((feed) => feed && feed.url).filter(Boolean);
+    const feeds = newsModule.config.feeds.map((feed) => {
+      if (typeof feed === 'string') {
+        return { url: feed, title: '' };
+      }
+      if (feed && typeof feed.url === 'string') {
+        return { url: feed.url, title: typeof feed.title === 'string' ? feed.title : '' };
+      }
+      return null;
+    }).filter(Boolean);
     const rssMain = document.getElementById('rss-main');
     const rssSecondary = document.getElementById('rss-secondary');
-    if (rssMain && feeds[0]) rssMain.value = feeds[0];
-    if (rssSecondary) rssSecondary.value = feeds[1] || '';
+    const rssMainTitle = document.getElementById('rss-main-title');
+    const rssSecondaryTitle = document.getElementById('rss-secondary-title');
+    if (rssMain) rssMain.value = feeds[0] ? feeds[0].url : '';
+    if (rssSecondary) rssSecondary.value = feeds[1] ? feeds[1].url : '';
+    if (rssMainTitle) rssMainTitle.value = feeds[0] ? feeds[0].title : '';
+    if (rssSecondaryTitle) rssSecondaryTitle.value = feeds[1] ? feeds[1].title : '';
   }
 
   const langEl = document.getElementById('set-lang');
@@ -495,6 +593,7 @@ function applyConfigToUI(config) {
   if (tfEl && (config.timeFormat === 12 || config.timeFormat === 24)) {
     tfEl.value = String(config.timeFormat);
   }
+
 }
 
 function handleMessage(data) {
@@ -542,16 +641,11 @@ function wsLog(msg, cls) {
 function setConnStatus(on, ip) {
   const dot = document.getElementById('conn-dot');
   const lbl = document.getElementById('conn-label');
-  const stat = document.getElementById('stat-status');
   if (on) {
     if (dot) dot.style.background = 'var(--success)';
     if (lbl) {
       lbl.textContent = 'Connected · RPi4';
       lbl.style.color = 'var(--success)';
-    }
-    if (stat) {
-      stat.textContent = 'Online';
-      stat.style.color = 'var(--success)';
     }
   } else {
     if (dot) dot.style.background = '#f87171';
@@ -559,10 +653,19 @@ function setConnStatus(on, ip) {
       lbl.textContent = 'Disconnected';
       lbl.style.color = '#f87171';
     }
-    if (stat) {
-      stat.textContent = 'Offline';
-      stat.style.color = '#f87171';
-    }
+    setMirrorStatus(false);
+  }
+}
+
+function setMirrorStatus(on) {
+  const stat = document.getElementById('stat-status');
+  if (!stat) return;
+  if (on) {
+    stat.textContent = 'Online';
+    stat.style.color = 'var(--success)';
+  } else {
+    stat.textContent = 'Offline';
+    stat.style.color = '#f87171';
   }
 }
 
@@ -592,16 +695,61 @@ function toggleSwitch(el, key) {
   showToast('Toggle not supported in LAN mode', true);
 }
 
-function applyGreeting() {
-  const raw = document.getElementById('greeting-input').value;
-  const val = sanitize(raw).substring(0, 120) || 'Bun venit!';
-  setText('mirror-greeting-text', val);
-  state.config.greeting = val;
-  showToast('Greeting update not supported in LAN mode', true);
+async function applyCompliments() {
+  const readComplimentsGroup = (id) => {
+    const el = document.getElementById(id);
+    if (!el) return [];
+    const raw = String(el.value || '').trim();
+    if (!raw) return [];
+    return raw
+      .split(/\r?\n/)
+      .map(line => line.trim())
+      .filter(line => line.length > 0)
+      .slice(0, 50); // Cap at 50 messages per group
+  };
+
+  const compliments = {
+    anytime: readComplimentsGroup('compliments-anytime'),
+    morning: readComplimentsGroup('compliments-morning'),
+    afternoon: readComplimentsGroup('compliments-afternoon'),
+    evening: readComplimentsGroup('compliments-evening')
+  };
+
+  const intervalInput = document.getElementById('compliments-update-interval-seconds');
+  const intervalRaw = intervalInput ? String(intervalInput.value || '').trim() : '';
+  const intervalSeconds = Number(intervalRaw);
+  if (!Number.isFinite(intervalSeconds) || !Number.isInteger(intervalSeconds) || intervalSeconds < 1 || intervalSeconds > 86400) {
+    showToast('Please enter a valid update interval (1-86400 sec)', true);
+    return;
+  }
+
+  const hasData = Object.values(compliments).some(arr => arr.length > 0);
+  const complimentsPayload = { updateIntervalSeconds: intervalSeconds };
+  if (hasData) {
+    complimentsPayload.anytime = compliments.anytime;
+    complimentsPayload.morning = compliments.morning;
+    complimentsPayload.afternoon = compliments.afternoon;
+    complimentsPayload.evening = compliments.evening;
+  }
+
+  const result = await updateConfig({ compliments: complimentsPayload });
+  if (handleApplyResult(result)) {
+    fetchConfigSnapshot().then(function(cfg) {
+      applyConfigToUI(cfg);
+      const savedComplimentsModule = cfg && Array.isArray(cfg.modules)
+        ? cfg.modules.find((mod) => mod.module === 'compliments' && mod.config && typeof mod.config === 'object')
+        : null;
+      const savedIntervalMs = savedComplimentsModule ? Number(savedComplimentsModule.config.updateInterval) : NaN;
+      if (!Number.isFinite(savedIntervalMs) || Math.round(savedIntervalMs) !== intervalSeconds * 1000) {
+        if (intervalInput) intervalInput.value = String(intervalSeconds);
+        showToast('Interval not saved to config. Restart MagicMirror and try again.', true);
+      }
+    });
+  }
 }
 
 function setGreeting(txt) {
-  const el = document.getElementById('greeting-input');
+  const el = document.getElementById('compliments-anytime');
   if (el) el.value = sanitize(txt);
 }
 
@@ -617,13 +765,27 @@ function applyTicker() {
 async function applyNews() {
   const rssMain = document.getElementById('rss-main')?.value.trim() || '';
   const rssSecondary = document.getElementById('rss-secondary')?.value.trim() || '';
-  const feeds = [rssMain, rssSecondary].filter((url) => url && /^https?:\/\//.test(url));
+  const mainTitleRaw = document.getElementById('rss-main-title')?.value.trim() || '';
+  const secondaryTitleRaw = document.getElementById('rss-secondary-title')?.value.trim() || '';
+  const mainTitle = mainTitleRaw.substring(0, 60);
+  const secondaryTitle = secondaryTitleRaw.substring(0, 60);
+  const feeds = [];
+  if (rssMain && /^https?:\/\//.test(rssMain)) {
+    feeds.push({ title: mainTitle, url: rssMain });
+  }
+  if (rssSecondary && /^https?:\/\//.test(rssSecondary)) {
+    feeds.push({ title: secondaryTitle, url: rssSecondary });
+  }
   if (feeds.length === 0) {
     showToast('RSS URL is required', true);
     return;
   }
   const result = await updateConfig({ newsfeed: { feeds } });
-  handleApplyResult(result);
+  if (handleApplyResult(result)) {
+    fetchConfigSnapshot().then(function(cfg) {
+      applyConfigToUI(cfg);
+    });
+  }
 }
 
 async function applyWeather() {
@@ -636,7 +798,11 @@ async function applyWeather() {
   }
 
   const result = await updateConfig({ weather: { lat, lon } });
-  handleApplyResult(result);
+  if (handleApplyResult(result)) {
+    fetchConfigSnapshot().then(function(cfg) {
+      applyConfigToUI(cfg);
+    });
+  }
 }
 
 async function applyCalendar() {
@@ -645,8 +811,19 @@ async function applyCalendar() {
     showToast('⚠ Invalid calendar URL!', true);
     return;
   }
-  const result = await updateConfig({ calendar: { url: sanitize(raw).substring(0, 300) } });
-  handleApplyResult(result);
+  const nextUrl = raw.substring(0, 300);
+  const result = await updateConfig({ calendar: { url: nextUrl } });
+  if (handleApplyResult(result)) {
+    fetchConfigSnapshot().then(function(cfg) {
+      applyConfigToUI(cfg);
+      const savedUrl = getPrimaryCalendarUrl(cfg);
+      if (String(savedUrl || '') !== nextUrl) {
+        const input = document.getElementById('cal-url');
+        if (input) input.value = nextUrl;
+        showToast('Calendar URL not saved to config. Restart MagicMirror and try again.', true);
+      }
+    });
+  }
 }
 
 async function applyLocale() {
