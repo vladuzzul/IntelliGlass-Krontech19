@@ -52,6 +52,59 @@ function getInputRaw(id) {
   return el ? String(el.value).trim() : '';
 }
 
+const ROMANIA_CITY_PRESETS = [
+  { key: 'bucharest', label: 'Bucuresti', lat: 44.4268, lon: 26.1025 },
+  { key: 'cluj-napoca', label: 'Cluj-Napoca', lat: 46.7712, lon: 23.6236 },
+  { key: 'iasi', label: 'Iasi', lat: 47.1585, lon: 27.6014 },
+  { key: 'timisoara', label: 'Timisoara', lat: 45.7489, lon: 21.2087 },
+  { key: 'constanta', label: 'Constanta', lat: 44.1598, lon: 28.6348 },
+  { key: 'brasov', label: 'Brasov', lat: 45.6579, lon: 25.6012 },
+  { key: 'sibiu', label: 'Sibiu', lat: 45.7983, lon: 24.1256 },
+  { key: 'oradea', label: 'Oradea', lat: 47.0465, lon: 21.9189 },
+  { key: 'craiova', label: 'Craiova', lat: 44.3302, lon: 23.7949 },
+  { key: 'galati', label: 'Galati', lat: 45.4353, lon: 28.008 },
+  { key: 'baia-mare', label: 'Baia Mare', lat: 47.6596, lon: 23.5833 },
+  { key: 'arad', label: 'Arad', lat: 46.1866, lon: 21.3123 },
+  { key: 'ploiesti', label: 'Ploiesti', lat: 44.9462, lon: 26.0365 }
+];
+
+function populateCityPresetSelect() {
+  const select = document.getElementById('weather-city-select');
+  if (!select || select.options.length > 0) return;
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = 'Selecteaza oras';
+  select.appendChild(placeholder);
+
+  ROMANIA_CITY_PRESETS.forEach((preset) => {
+    const opt = document.createElement('option');
+    opt.value = preset.key;
+    opt.textContent = preset.label;
+    select.appendChild(opt);
+  });
+}
+
+function applyCityPreset(cityKey) {
+  if (!cityKey) return;
+  const preset = ROMANIA_CITY_PRESETS.find((item) => item.key === cityKey);
+  if (!preset) return;
+
+  const latInput = document.getElementById('weather-latitude');
+  const lonInput = document.getElementById('weather-longitude');
+  if (latInput) latInput.value = preset.lat;
+  if (lonInput) lonInput.value = preset.lon;
+
+  const cityLabel = document.getElementById('weather-city-label');
+  if (cityLabel) cityLabel.textContent = preset.label;
+}
+
+function getPresetKeyForCoords(lat, lon) {
+  const latFixed = Number(lat).toFixed(4);
+  const lonFixed = Number(lon).toFixed(4);
+  const preset = ROMANIA_CITY_PRESETS.find((item) => item.lat.toFixed(4) === latFixed && item.lon.toFixed(4) === lonFixed);
+  return preset ? preset.key : '';
+}
+
 /* MOBILE SIDEBAR TOGGLE */
 function toggleSidebar() {
   const sidebar = document.getElementById('main-sidebar');
@@ -90,6 +143,7 @@ const state = {
 };
 
 const CONNECTION_STORAGE_KEY = 'intelliglass-remote-connection';
+const LOCAL_UI_STORAGE_KEY = 'intelliglass-remote-ui';
 
 function loadConnection() {
   try {
@@ -116,6 +170,40 @@ function clearConnection() {
   try {
     localStorage.removeItem(CONNECTION_STORAGE_KEY);
   } catch (e) {}
+}
+
+function loadLocalUi() {
+  try {
+    const raw = localStorage.getItem(LOCAL_UI_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return null;
+    return {
+      greeting: typeof parsed.greeting === 'string' ? parsed.greeting : '',
+      ticker: typeof parsed.ticker === 'string' ? parsed.ticker : ''
+    };
+  } catch (e) {
+    return null;
+  }
+}
+
+function saveLocalUi(updates) {
+  try {
+    const current = loadLocalUi() || {};
+    const next = Object.assign({}, current, updates);
+    localStorage.setItem(LOCAL_UI_STORAGE_KEY, JSON.stringify(next));
+  } catch (e) {}
+}
+
+function applyLocalUi() {
+  const stored = loadLocalUi();
+  if (!stored) return;
+
+  const greetingInput = document.getElementById('greeting-input');
+  if (greetingInput && stored.greeting) greetingInput.value = stored.greeting;
+
+  const tickerInput = document.getElementById('custom-ticker');
+  if (tickerInput && stored.ticker) tickerInput.value = stored.ticker;
 }
 
 /* NAVIGATION */
@@ -198,6 +286,10 @@ function connectWS(options = {}) {
     setText('net-ip', host);
     setText('net-url', state.apiBase);
     setText('sidebar-ip', host + ':' + port);
+    const ipInput = document.getElementById('ws-ip');
+    if (ipInput) ipInput.value = host;
+    const portInput = document.getElementById('ws-port');
+    if (portInput) portInput.value = port;
     saveConnection(host, port);
     fetchConfigSnapshot().then(function(cfg) {
       applyConfigToUI(cfg);
@@ -306,6 +398,17 @@ function applyConfigToUI(config) {
     }
     if (lonInput && Number.isFinite(Number(weatherModule.config.lon))) {
       lonInput.value = weatherModule.config.lon;
+    }
+    const cityLabel = document.getElementById('weather-city-label');
+    if (cityLabel && Number.isFinite(Number(weatherModule.config.lat)) && Number.isFinite(Number(weatherModule.config.lon))) {
+      const lat = Number(weatherModule.config.lat).toFixed(4);
+      const lon = Number(weatherModule.config.lon).toFixed(4);
+      cityLabel.textContent = `Lat ${lat}, Lon ${lon}`;
+    }
+    const presetSelect = document.getElementById('weather-city-select');
+    if (presetSelect && Number.isFinite(Number(weatherModule.config.lat)) && Number.isFinite(Number(weatherModule.config.lon))) {
+      const presetKey = getPresetKeyForCoords(Number(weatherModule.config.lat), Number(weatherModule.config.lon));
+      presetSelect.value = presetKey;
     }
   }
 
@@ -599,7 +702,7 @@ const translations = {
     tog_wind: 'Afișare Vânt', tog_humidity: 'Afișare Umiditate', tog_autoupdate: 'Actualizare automată (15 min)',
     btn_apply_weather: 'Aplică Setări Vreme', btn_refresh_weather: 'Actualizează Previzualizare',
     page_news: 'Configurare Știri', page_news_sub: 'Personalizează sursa și conținutul banderolei derulante de pe oglindă.',
-    card_rss: 'Surse RSS', lbl_rss_main: 'Feed RSS Principal', lbl_rss_secondary: 'Feed RSS Secundar (opțional)',
+    card_rss: 'Surse RSS', lbl_rss_main: 'Feed RSS Național', lbl_rss_secondary: 'Feed RSS Local (opțional)',
     lbl_news_cat: 'Categorie Știri', opt_all: 'Toate', opt_politics: 'Politică', opt_sport: 'Sport',
     opt_tech: 'Tech', opt_economy: 'Economie',
     lbl_ticker_speed: 'Viteză ticker', opt_slow: 'Lentă', opt_normal: 'Normală', opt_fast: 'Rapidă',
@@ -707,7 +810,7 @@ const translations = {
     tog_wind: 'Show Wind', tog_humidity: 'Show Humidity', tog_autoupdate: 'Auto update (15 min)',
     btn_apply_weather: 'Apply Weather Settings', btn_refresh_weather: 'Refresh Preview',
     page_news: 'News Settings', page_news_sub: 'Customize the source and content of the scrolling banner.',
-    card_rss: 'RSS Sources', lbl_rss_main: 'Primary RSS Feed', lbl_rss_secondary: 'Secondary RSS Feed (optional)',
+    card_rss: 'RSS Sources', lbl_rss_main: 'National RSS Feed', lbl_rss_secondary: 'Local RSS Feed (optional)',
     lbl_news_cat: 'News Category', opt_all: 'All', opt_politics: 'Politics', opt_sport: 'Sport',
     opt_tech: 'Tech', opt_economy: 'Economy',
     lbl_ticker_speed: 'Ticker speed', opt_slow: 'Slow', opt_normal: 'Normal', opt_fast: 'Fast',
@@ -1070,11 +1173,14 @@ function autoConnectIfPossible() {
   if (!host || !port) return;
 
   const ipInput = document.getElementById('ws-ip');
-  if (ipInput && !ipInput.value) ipInput.value = host;
+  if (ipInput) ipInput.value = host;
   const portInput = document.getElementById('ws-port');
-  if (portInput && !portInput.value) portInput.value = port;
+  if (portInput) portInput.value = port;
 
   connectWS({ host, port, skipThrottle: true });
 }
 
 autoConnectIfPossible();
+applyLocalUi();
+populateCityPresetSelect();
+renderFeedsList();

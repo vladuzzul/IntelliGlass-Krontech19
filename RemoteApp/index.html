@@ -314,12 +314,16 @@
       <div class="card">
         <div class="card-title">📍 <span data-i18n="card_location">Locație & Setări</span></div>
         <div class="form-row">
-          <label data-i18n="lbl_city">Orașul tău</label>
-          <input type="text" id="weather-city" value="Brașov" placeholder="ex: Cluj-Napoca, Sibiu...">
+          <label data-i18n="lbl_latitude">Latitudine</label>
+          <input type="text" id="weather-latitude" value="47.6782" placeholder="ex: 47.6782, 46.7692...">
         </div>
         <div class="form-row">
-          <label data-i18n="lbl_country">Cod țară (ISO)</label>
-          <input type="text" id="weather-country" value="RO" placeholder="ex: RO, DE, GB">
+          <label data-i18n="lbl_longitude">Longitudine</label>
+          <input type="text" id="weather-longitude" value="23.5806" placeholder="ex: 23.5806, 24.6789...">
+        </div>
+        <div class="form-row">
+          <label>Oras (preset)</label>
+          <select id="weather-city-select" onchange="applyCityPreset(this.value)"></select>
         </div>
         <div class="form-row">
           <label data-i18n="lbl_tempunit">Unitate temperatură</label>
@@ -353,38 +357,8 @@
           <button class="btn btn-ghost" onclick="fetchWeatherPreview()" data-i18n="btn_refresh_weather">Actualizează Previzualizare</button>
         </div>
       </div>
-      <div class="card">
-        <div class="card-title">🌤 Prognoză Actuală — <span id="weather-city-label">Brașov</span></div>
-        <div id="weather-preview-rows">
-          <div class="weather-row">
-            <span style="font-size:13px; color:var(--text-muted);">Astăzi</span>
-            <span style="font-size:20px;">🌤</span>
-            <span style="font-size:15px; font-weight:500; color:var(--linen);">8.6° / 5.3°</span>
-          </div>
-          <div class="weather-row">
-            <span style="font-size:13px; color:var(--text-muted);">Mâine</span>
-            <span style="font-size:20px;">🌧</span>
-            <span style="font-size:15px; font-weight:500; color:var(--linen);">6.3° / 2.2°</span>
-          </div>
-          <div class="weather-row">
-            <span style="font-size:13px; color:var(--text-muted);">Joi</span>
-            <span style="font-size:20px;">☀</span>
-            <span style="font-size:15px; font-weight:500; color:var(--linen);">11.7° / 0.7°</span>
-          </div>
-          <div class="weather-row">
-            <span style="font-size:13px; color:var(--text-muted);">Vineri</span>
-            <span style="font-size:20px;">⛅</span>
-            <span style="font-size:15px; font-weight:500; color:var(--linen);">13.5° / 5.1°</span>
-          </div>
-          <div class="weather-row">
-            <span style="font-size:13px; color:var(--text-muted);">Sâmbătă</span>
-            <span style="font-size:20px;">☀</span>
-            <span style="font-size:15px; font-weight:500; color:var(--linen);">15.7° / 2.7°</span>
-          </div>
-        </div>
-        <div class="info-box" style="margin-top:14px;">
-          <span data-i18n="info_weather_api">💡 Datele meteo sunt preluate via API OpenWeatherMap. Configurează cheia API în secțiunea Setări → API Keys pentru date în timp real.</span>
-        </div>
+      <div class="info-box" style="margin-top:14px;">
+      <span data-i18n="info_weather_api">💡 Datele meteo sunt preluate via API OpenWeatherMap. Configurează cheia API în secțiunea Setări → API Keys pentru date în timp real.</span>
       </div>
     </div>
   </div>
@@ -399,11 +373,11 @@
     <div class="card">
       <div class="card-title">📡 <span data-i18n="card_rss">Surse RSS</span></div>
       <div class="form-row">
-        <label data-i18n="lbl_rss_main">Feed RSS Principal</label>
+        <label data-i18n="lbl_rss_main">Feed RSS National</label>
         <input type="text" id="rss-main" value="https://feeds.digi24.ro/rss/stiri" placeholder="https://...">
       </div>
       <div class="form-row">
-        <label data-i18n="lbl_rss_secondary">Feed RSS Secundar (opțional)</label>
+        <label data-i18n="lbl_rss_secondary">Feed RSS Local</label>
         <input type="text" id="rss-secondary" value="" placeholder="https://...">
       </div>
       <div class="form-row-2">
