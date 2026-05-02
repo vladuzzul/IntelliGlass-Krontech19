@@ -89,6 +89,7 @@ function Server (configObj) {
 
 			app.use(ipAccessControl(config.ipWhitelist));
 			app.use(helmet(config.httpHeaders));
+			app.use(express.json());
 			app.use("/js", express.static(__dirname));
 
 			if (config.hideConfigSecrets) {
@@ -118,6 +119,37 @@ function Server (configObj) {
 				}
 			};
 			app.get("/config", (req, res) => getConfig(req, res));
+
+			app.post("/config", (req, res) => {
+				Log.log("Updating config...");
+				// read the config file
+				fs.readFile(path.resolve(global.root_path + "/config/config.js"), "utf8", (err, data) => {
+					if (err) {
+						Log.error("Error reading config file:", err);
+						res.status(500).send("Error reading config file");
+						return;
+					}
+
+					// replace the module config
+					let newConfig = data;
+					for (const [key, value] of Object.entries(req.body)) {
+						const regex = new RegExp(`(module:\\s*['"]${key}['"],\\s*config:\\s*){([\\s\\S]*?)}`);
+						newConfig = newConfig.replace(regex, `$1${JSON.stringify(value, null, 4)}`);
+					}
+
+					// write the new config file
+					fs.writeFile(path.resolve(global.root_path + "/config/config.js"), newConfig, "utf8", (err) => {
+						if (err) {
+							Log.error("Error writing config file:", err);
+							res.status(500).send("Error writing config file");
+							return;
+						}
+
+						Log.log("Config updated successfully");
+						res.status(200).send("Config updated successfully");
+					});
+				});
+			});
 
 			app.get("/cors", async (req, res) => await cors(req, res));
 

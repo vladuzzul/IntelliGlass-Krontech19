@@ -170,13 +170,24 @@ function disconnectWS() {
 
 /* Trimitem comenzi ca JSON */
 function sendCommand(obj) {
-  if (state.ws && state.ws.readyState === WebSocket.OPEN) {
-    const payload = JSON.stringify(obj);
-    state.ws.send(payload);
-    wsLog('[→] ' + payload, 'info');
-  } else {
-    wsLog('[!] Nu ești conectat la oglindă. Apasă Conectează.', 'err');
-  }
+	if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+		const payload = JSON.stringify(obj);
+		state.ws.send(payload);
+		wsLog("[→] " + payload, "info");
+
+		// also send a post request to /config
+		fetch("/config", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json"
+			},
+			body: payload
+		}).catch((error) => {
+			wsLog("[!] Error updating config: " + error, "err");
+		});
+	} else {
+		wsLog("[!] Nu ești conectat la oglindă. Apasă Conectează.", "err");
+	}
 }
 
 function handleMessage(data) {
