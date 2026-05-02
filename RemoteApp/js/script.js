@@ -29,10 +29,27 @@ function isValidPort(p) {
   return !isNaN(n) && n >= 1 && n <= 65535;
 }
 
+/* Validează că un host este valid */
+function isValidHost(host) {
+  if (isValidIP(host)) return true;
+  if (host === 'localhost') return true;
+  return /^[a-zA-Z0-9.-]+$/.test(host) && host.length > 0 && host.length <= 253 && !host.endsWith('.');
+}
+
+function getDefaultPortFromProtocol() {
+  return window.location.protocol === 'https:' ? '443' : '80';
+}
+
 /* Returnează valoarea unui input text, sanitizată */
 function getInput(id) {
   const el = document.getElementById(id);
   return el ? sanitize(el.value) : '';
+}
+
+/* Returnează valoarea unui input text, raw */
+function getInputRaw(id) {
+  const el = document.getElementById(id);
+  return el ? String(el.value).trim() : '';
 }
 
 /* MOBILE SIDEBAR TOGGLE */
@@ -60,8 +77,9 @@ function closeSidebar() {
 
 /* STATE */
 const state = {
-  ws: null,
+  apiBase: '',
   connected: false,
+  statusTimer: null,
   config: {
     city: 'Brașov',
     greeting: 'Great to see you!',
@@ -70,6 +88,35 @@ const state = {
     widget_positions: {},
   }
 };
+
+const CONNECTION_STORAGE_KEY = 'intelliglass-remote-connection';
+
+function loadConnection() {
+  try {
+    const raw = localStorage.getItem(CONNECTION_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return null;
+    const host = typeof parsed.host === 'string' ? parsed.host : '';
+    const port = typeof parsed.port === 'string' ? parsed.port : '';
+    if (!host || !port) return null;
+    return { host, port };
+  } catch (e) {
+    return null;
+  }
+}
+
+function saveConnection(host, port) {
+  try {
+    localStorage.setItem(CONNECTION_STORAGE_KEY, JSON.stringify({ host, port }));
+  } catch (e) {}
+}
+
+function clearConnection() {
+  try {
+    localStorage.removeItem(CONNECTION_STORAGE_KEY);
+  } catch (e) {}
+}
 
 /* NAVIGATION */
 function showSection(name, pillEl) {
@@ -89,23 +136,48 @@ function setSideActive(btn) {
   btn.classList.add('active');
 }
 
-/* WEBSOCKET */
+/* CONNECTION */
 let lastConnectAttempt = 0;
 
-function connectWS() {
+function getBasePathFromLocation() {
+  const path = window.location.pathname || '/';
+  const marker = '/RemoteApp/';
+  const idx = path.toLowerCase().indexOf(marker.toLowerCase());
+  if (idx === -1) return '/';
+  const base = path.slice(0, idx + 1);
+  return base === '' ? '/' : base;
+}
+
+async function fetchStatus() {
+  if (!state.apiBase) return;
+  try {
+    const res = await fetch(state.apiBase + 'remote/status', { cache: 'no-store' });
+    if (!res.ok) throw new Error('status ' + res.status);
+    const data = await res.json();
+    if (data && typeof data.clients === 'number') {
+      setText('net-clients', Math.max(0, Math.round(data.clients)));
+    }
+  } catch (e) {
+    wsLog('[!] Status fetch failed: ' + sanitize(e.message || 'error'), 'err');
+    throw e;
+  }
+}
+
+function connectWS(options = {}) {
   const now = Date.now();
-  if (now - lastConnectAttempt < 2000) {
+  if (!options.skipThrottle && now - lastConnectAttempt < 2000) {
     showToast('⚠ Asteaptă 2 secunde între încercări!', true);
     return;
   }
   lastConnectAttempt = now;
 
-  const ip = document.getElementById('ws-ip').value.trim();
-  const port = document.getElementById('ws-port').value.trim();
+  const host = options.host || getInputRaw('ws-ip');
+  const portInput = options.port || getInputRaw('ws-port');
+  const port = portInput || getDefaultPortFromProtocol();
 
-  if (!isValidIP(ip)) {
-    showToast('⚠ IP invalid! Folosește formatul 192.168.x.x', true);
-    wsLog('[✗] IP invalid introdus.', 'err');
+  if (!isValidHost(host)) {
+    showToast('⚠ IP/host invalid! Folosește 192.168.x.x sau localhost', true);
+    wsLog('[✗] IP/host invalid introdus.', 'err');
     return;
   }
   if (!isValidPort(port)) {
@@ -114,80 +186,153 @@ function connectWS() {
     return;
   }
 
-  wsLog('[→] Se conectează la ws://' + ip + ':' + port + ' ...', 'info');
+  const protocol = window.location.protocol === 'https:' ? 'https://' : 'http://';
+  const basePath = getBasePathFromLocation();
+  state.apiBase = protocol + host + ':' + port + basePath;
+  wsLog('[→] Connecting to ' + state.apiBase + ' ...', 'info');
 
-  try {
-    if (state.ws) { state.ws.close(); state.ws = null; }
-    state.ws = new WebSocket('ws://' + ip + ':' + port);
-
-    state.ws.onopen = function() {
-      state.connected = true;
-      setConnStatus(true, ip);
-      wsLog('[✓] Conectat la IntelliGlass Mirror ws://' + ip + ':' + port, 'ok');
-      setText('net-ip', ip);
-      setText('net-url', 'http://' + ip + ':' + port);
-      setText('sidebar-ip', ip + ':' + port);
-      sendCommand({ type: 'get_status' });
-    };
-
-    state.ws.onmessage = function(evt) {
-      try {
-        const raw = evt.data;
-        if (typeof raw !== 'string' || raw.length > 65536) {
-          wsLog('[!] Mesaj prea mare sau invalid. Ignorat.', 'err');
-          return;
-        }
-        const data = JSON.parse(raw);
-        if (typeof data !== 'object' || data === null || Array.isArray(data)) {
-          wsLog('[!] Format mesaj neașteptat. Ignorat.', 'err');
-          return;
-        }
-        handleMessage(data);
-      } catch (e) {
-        wsLog('[←] (mesaj non-JSON ignorat)', 'info');
-      }
-    };
-
-    state.ws.onerror = function() {
-      wsLog('[✗] Eroare conexiune. Verifică IP-ul și că serverul rulează pe RPi.', 'err');
-    };
-
-    state.ws.onclose = function() {
-      state.connected = false;
-      setConnStatus(false);
-      wsLog('[✗] Conexiune închisă.', 'err');
-    };
-  } catch (e) {
-    wsLog('[✗] ' + sanitize(e.message), 'err');
-  }
+  fetchStatus().then(function() {
+    state.connected = true;
+    setConnStatus(true, host);
+    wsLog('[✓] Connected to IntelliGlass Mirror ' + state.apiBase, 'ok');
+    setText('net-ip', host);
+    setText('net-url', state.apiBase);
+    setText('sidebar-ip', host + ':' + port);
+    saveConnection(host, port);
+    fetchConfigSnapshot().then(function(cfg) {
+      applyConfigToUI(cfg);
+    });
+    if (state.statusTimer) clearInterval(state.statusTimer);
+    state.statusTimer = setInterval(function() {
+      fetchStatus().catch(function() {});
+    }, 10000);
+  }).catch(function(err) {
+    state.connected = false;
+    setConnStatus(false);
+    wsLog('[✗] Connection failed: ' + sanitize(err.message || 'error'), 'err');
+  });
 }
 
 function disconnectWS() {
-  if (state.ws) { state.ws.close(); state.ws = null; }
+  state.connected = false;
+  state.apiBase = '';
+  clearConnection();
+  if (state.statusTimer) {
+    clearInterval(state.statusTimer);
+    state.statusTimer = null;
+  }
   setConnStatus(false);
   wsLog('[—] Deconectat manual.', 'info');
 }
 
 /* Trimitem comenzi ca JSON */
 function sendCommand(obj) {
-	if (state.ws && state.ws.readyState === WebSocket.OPEN) {
-		const payload = JSON.stringify(obj);
-		state.ws.send(payload);
-		wsLog("[→] " + payload, "info");
+  if (!state.connected || !state.apiBase) {
+    wsLog('[!] Nu ești conectat la oglindă. Apasă Conectează.', 'err');
+    return false;
+  }
+  const type = obj && obj.type ? String(obj.type) : '';
+  if (type !== 'reload' && type !== 'apply_all') {
+    wsLog('[!] Unsupported command: ' + type, 'err');
+    return false;
+  }
+  const payload = JSON.stringify({ type: type === 'apply_all' ? 'reload' : type });
+  wsLog('[→] ' + payload, 'info');
+  fetch(state.apiBase + 'remote/command', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: payload
+  }).catch((error) => {
+    wsLog('[!] Error sending command: ' + error, 'err');
+  });
+  return true;
+}
 
-		// also send a post request to /config
-		fetch("/config", {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json"
-			},
-			body: payload
-		}).catch((error) => {
-			wsLog("[!] Error updating config: " + error, "err");
-		});
-	} else {
-		wsLog("[!] Nu ești conectat la oglindă. Apasă Conectează.", "err");
-	}
+function runCommand(obj, successMsg) {
+  if (!state.connected || !state.apiBase) {
+    showToast('Connect to the mirror first', true);
+    return;
+  }
+  const type = obj && obj.type ? String(obj.type) : '';
+  if (type !== 'reload' && type !== 'apply_all') {
+    showToast('Command not supported in LAN mode', true);
+    return;
+  }
+  const ok = sendCommand(obj);
+  if (ok && successMsg) showToast(successMsg);
+}
+
+async function updateConfig(payload) {
+  if (!state.connected || !state.apiBase) {
+    wsLog('[!] Nu ești conectat la oglindă. Apasă Conectează.', 'err');
+    return false;
+  }
+  try {
+    const res = await fetch(state.apiBase + 'remote/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error('config ' + res.status);
+    wsLog('[→] remote/config updated', 'info');
+    return true;
+  } catch (e) {
+    wsLog('[!] Error updating config: ' + sanitize(e.message || 'error'), 'err');
+    return false;
+  }
+}
+
+async function fetchConfigSnapshot() {
+  if (!state.apiBase) return null;
+  try {
+    const res = await fetch(state.apiBase + 'config', { cache: 'no-store' });
+    if (!res.ok) throw new Error('config ' + res.status);
+    return await res.json();
+  } catch (e) {
+    wsLog('[!] Error loading config: ' + sanitize(e.message || 'error'), 'err');
+    return null;
+  }
+}
+
+function applyConfigToUI(config) {
+  if (!config || !Array.isArray(config.modules)) return;
+
+  const weatherModule = config.modules.find((mod) => mod.module === 'weather' && mod.config);
+  if (weatherModule && weatherModule.config) {
+    const latInput = document.getElementById('weather-latitude');
+    const lonInput = document.getElementById('weather-longitude');
+    if (latInput && Number.isFinite(Number(weatherModule.config.lat))) {
+      latInput.value = weatherModule.config.lat;
+    }
+    if (lonInput && Number.isFinite(Number(weatherModule.config.lon))) {
+      lonInput.value = weatherModule.config.lon;
+    }
+  }
+
+  const calendarModule = config.modules.find((mod) => mod.module === 'calendar' && mod.config && Array.isArray(mod.config.calendars));
+  if (calendarModule && calendarModule.config.calendars.length > 0) {
+    const calInput = document.getElementById('cal-url');
+    const calUrl = calendarModule.config.calendars[0].url;
+    if (calInput && typeof calUrl === 'string') calInput.value = calUrl;
+  }
+
+  const newsModule = config.modules.find((mod) => mod.module === 'newsfeed' && mod.config && Array.isArray(mod.config.feeds));
+  if (newsModule) {
+    const feeds = newsModule.config.feeds.map((feed) => feed && feed.url).filter(Boolean);
+    const rssMain = document.getElementById('rss-main');
+    const rssSecondary = document.getElementById('rss-secondary');
+    if (rssMain && feeds[0]) rssMain.value = feeds[0];
+    if (rssSecondary) rssSecondary.value = feeds[1] || '';
+  }
+
+  const langEl = document.getElementById('set-lang');
+  if (langEl && typeof config.language === 'string') {
+    langEl.value = config.language;
+  }
+  const tfEl = document.getElementById('set-timeformat');
+  if (tfEl && (config.timeFormat === 12 || config.timeFormat === 24)) {
+    tfEl.value = String(config.timeFormat);
+  }
 }
 
 function handleMessage(data) {
@@ -237,17 +382,25 @@ function setConnStatus(on, ip) {
   const lbl = document.getElementById('conn-label');
   const stat = document.getElementById('stat-status');
   if (on) {
-    dot.style.background = 'var(--success)';
-    lbl.textContent = 'Conectat · RPi4';
-    lbl.style.color = 'var(--success)';
-    stat.textContent = 'Online';
-    stat.style.color = 'var(--success)';
+    if (dot) dot.style.background = 'var(--success)';
+    if (lbl) {
+      lbl.textContent = 'Conectat · RPi4';
+      lbl.style.color = 'var(--success)';
+    }
+    if (stat) {
+      stat.textContent = 'Online';
+      stat.style.color = 'var(--success)';
+    }
   } else {
-    dot.style.background = '#f87171';
-    lbl.textContent = 'Deconectat';
-    lbl.style.color = '#f87171';
-    stat.textContent = 'Offline';
-    stat.style.color = '#f87171';
+    if (dot) dot.style.background = '#f87171';
+    if (lbl) {
+      lbl.textContent = 'Deconectat';
+      lbl.style.color = '#f87171';
+    }
+    if (stat) {
+      stat.textContent = 'Offline';
+      stat.style.color = '#f87171';
+    }
   }
 }
 
@@ -269,15 +422,12 @@ function setBrightness(val) {
   const n = Math.max(0, Math.min(100, parseInt(val) || 0));
   setText('bright-label', n + '%');
   setText('bright-stat', n + '%');
-  sendCommand({ type: 'brightness', value: n });
 }
 
 function toggleSwitch(el, key) {
   if (!/^[a-z_]+$/.test(key)) return;
   el.classList.toggle('on');
-  const on = el.classList.contains('on');
-  sendCommand({ type: 'toggle', key: key, value: on });
-  showToast((on ? '✓ Activat: ' : '✗ Dezactivat: ') + key.replace(/_/g, ' '));
+  showToast('Toggle not supported in LAN mode', true);
 }
 
 function applyGreeting() {
@@ -285,8 +435,7 @@ function applyGreeting() {
   const val = sanitize(raw).substring(0, 120) || 'Bun venit!';
   setText('mirror-greeting-text', val);
   state.config.greeting = val;
-  sendCommand({ type: 'set_greeting', text: val });
-  showToast('✓ Mesaj actualizat pe oglindă!');
+  showToast('Greeting update not supported in LAN mode', true);
 }
 
 function setGreeting(txt) {
@@ -299,12 +448,25 @@ function applyTicker() {
   const val = sanitize(raw).substring(0, 500);
   if (val) {
     setText('mirror-ticker', val + '   ');
-    sendCommand({ type: 'set_ticker', text: val });
-    showToast('✓ Ticker actualizat pe oglindă!');
+    showToast('Ticker update not supported in LAN mode', true);
   }
 }
 
-function applyWeather() {
+async function applyNews() {
+  const rssMain = document.getElementById('rss-main')?.value.trim() || '';
+  const rssSecondary = document.getElementById('rss-secondary')?.value.trim() || '';
+  const feeds = [rssMain, rssSecondary].filter((url) => url && /^https?:\/\//.test(url));
+  if (feeds.length === 0) {
+    showToast('RSS URL is required', true);
+    return;
+  }
+  const ok = await updateConfig({ newsfeed: { feeds } });
+  if (ok) {
+    runCommand({ type: 'reload' }, (translations[currentLang] || translations.ro).toast_reload);
+  }
+}
+
+async function applyWeather() {
   const lat = parseFloat(document.getElementById('weather-latitude').value.trim());
   const lon = parseFloat(document.getElementById('weather-longitude').value.trim());
 
@@ -313,28 +475,34 @@ function applyWeather() {
     return;
   }
 
-  sendCommand({ type: 'set_weather', lat, lon });
-  showToast('Setări vreme actualizate!');
+  const ok = await updateConfig({ weather: { lat, lon } });
+  if (ok) {
+    runCommand({ type: 'reload' }, (translations[currentLang] || translations.ro).toast_reload);
+  }
 }
 
-function applyCalendar() {
+async function applyCalendar() {
   const raw = document.getElementById('cal-url').value.trim();
   if (raw && !raw.startsWith('http://') && !raw.startsWith('https://') && raw !== '') {
     showToast('⚠ URL calendar invalid!', true);
     return;
   }
-  sendCommand({ type: 'set_calendar', url: sanitize(raw).substring(0, 300) });
-  showToast('✓ Calendar salvat!');
+  const ok = await updateConfig({ calendar: { url: sanitize(raw).substring(0, 300) } });
+  if (ok) {
+    runCommand({ type: 'reload' }, (translations[currentLang] || translations.ro).toast_reload);
+  }
 }
 
-function applyLocale() {
+async function applyLocale() {
   const langEl = document.getElementById('set-lang');
   const tfEl = document.getElementById('set-timeformat');
   const allowedLangs = ['ro','en','de','hu'];
   const lang = (langEl && allowedLangs.includes(langEl.value)) ? langEl.value : 'ro';
   const tf = (tfEl && tfEl.value === '12') ? '12' : '24';
-  sendCommand({ type: 'set_locale', lang, timeformat: tf });
-  showToast('✓ Limbă și regiune salvate!');
+  const ok = await updateConfig({ locale: { language: lang, timeFormat: parseInt(tf) } });
+  if (ok) {
+    runCommand({ type: 'reload' }, (translations[currentLang] || translations.ro).toast_reload);
+  }
 }
 
 function saveAPIKeys() {
@@ -342,13 +510,7 @@ function saveAPIKeys() {
   const gcal = document.getElementById('gcal-key').value.trim();
   const news = document.getElementById('news-key').value.trim();
   if (owm && owm.length < 10) { showToast('⚠ Cheia OWM pare prea scurtă!', true); return; }
-  sendCommand({
-    type: 'set_apikeys',
-    owm: owm ? '***set***' : '',
-    gcal: gcal ? '***set***' : '',
-    news: news ? '***set***' : ''
-  });
-  showToast('🔑 Chei API salvate pe RPi!');
+  showToast('API key updates not supported in LAN mode', true);
 }
 
 function applyPosition() {
@@ -356,8 +518,7 @@ function applyPosition() {
   const widget = widgetEl ? sanitize(widgetEl.value).substring(0, 30) : '';
   const selected = document.querySelector('.pos-cell.selected');
   const pos = selected ? sanitize(selected.dataset.poskey || '') : 'center';
-  sendCommand({ type: 'set_position', widget, position: pos });
-  showToast('✓ Poziție salvată: ' + widget);
+  showToast('Widget positioning not supported in LAN mode', true);
 }
 
 function applyStyle() {
@@ -369,8 +530,7 @@ function applyStyle() {
   const opacity = Math.max(10, Math.min(100, parseInt(opEl?.value) || 85));
   const rawColor = colorEl ? colorEl.value : 'F7ECE1';
   const color = /^[0-9A-Fa-f]{6}$/.test(rawColor) ? rawColor : 'F7ECE1';
-  sendCommand({ type: 'set_style', widget, size, opacity, color });
-  showToast('✓ Stil aplicat pe oglindă!');
+  showToast('Style updates not supported in LAN mode', true);
 }
 
 function selectPos(cell, key, label) {
@@ -384,8 +544,7 @@ function updatePosLabel() {}
 
 function confirmReset() {
   if (confirm((translations[currentLang] || translations.ro).confirm_reset)) {
-    sendCommand({ type: 'factory_reset' });
-    showToast('⚠ Reset inițiat!');
+    showToast('Factory reset not supported in LAN mode', true);
   }
 }
 
@@ -875,8 +1034,6 @@ function changeLang(lang) {
   if (state.connected) {
     document.getElementById('conn-label').style.color = 'var(--success)';
   }
-
-  sendCommand({ type: 'set_language', lang });
   showToast(t.toast_lang);
 }
 
@@ -896,3 +1053,28 @@ function showToast(msg, isErr) {
 }
 
 applyTranslations('en');
+
+function autoConnectIfPossible() {
+  const stored = loadConnection();
+  let host = stored ? stored.host : '';
+  let port = stored ? stored.port : '';
+
+  if (!host) {
+    const locHost = window.location.hostname;
+    if (locHost) {
+      host = locHost;
+      port = window.location.port || getDefaultPortFromProtocol();
+    }
+  }
+
+  if (!host || !port) return;
+
+  const ipInput = document.getElementById('ws-ip');
+  if (ipInput && !ipInput.value) ipInput.value = host;
+  const portInput = document.getElementById('ws-port');
+  if (portInput && !portInput.value) portInput.value = port;
+
+  connectWS({ host, port, skipThrottle: true });
+}
+
+autoConnectIfPossible();

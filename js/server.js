@@ -8,10 +8,136 @@ const socketio = require("socket.io");
 const Log = require("logger");
 
 const { ipAccessControl } = require("./ip_access_control");
+const Utils = require("./utils");
 
 const vendor = require("./vendor");
 
-const { getHtml, getVersion, getEnvVars, cors } = require("#server_functions");
+const { getHtml, getVersion, getEnvVars, cors, getConfigFilePath } = require("#server_functions");
+
+function normalizeBasePath (basePath) {
+	if (typeof basePath !== "string" || basePath.trim() === "") return "/";
+	const trimmed = basePath.trim();
+	const withLeading = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+	return withLeading.endsWith("/") ? withLeading : `${withLeading}/`;
+}
+
+function escapeForDoubleQuote (value) {
+	return String(value).replace(/\\/g, "\\\\").replace(/\"/g, "\\\"");
+}
+
+function replaceTopLevelString (source, key, value) {
+	const regex = new RegExp(`(\\b${key}\\s*:\\s*)(["'])([^"']*)(\\2)`);
+	if (!regex.test(source)) return source;
+	return source.replace(regex, `$1"${escapeForDoubleQuote(value)}"`);
+}
+
+function replaceTopLevelNumber (source, key, value) {
+	const regex = new RegExp(`(\\b${key}\\s*:\\s*)(-?\\d+(?:\\.\\d+)?)`);
+	if (!regex.test(source)) return source;
+	return source.replace(regex, `$1${value}`);
+}
+
+function getModulesArrayRanges (source) {
+	const modulesMatch = source.match(/\bmodules\s*:/);
+	if (!modulesMatch) return [];
+	const modulesIndex = modulesMatch.index;
+	if (typeof modulesIndex !== "number" || modulesIndex < 0) return [];
+	const arrayStart = source.indexOf("[", modulesIndex);
+	if (arrayStart === -1) return [];
+
+	const ranges = [];
+	let bracketDepth = 0;
+	let braceDepth = 0;
+	let inString = null;
+	let escape = false;
+	let objStart = -1;
+
+	for (let i = arrayStart; i < source.length; i++) {
+		const ch = source[i];
+		if (inString) {
+			if (escape) {
+				escape = false;
+				continue;
+			}
+			if (ch === "\\") {
+				escape = true;
+				continue;
+			}
+			if (ch === inString) {
+				inString = null;
+			}
+			continue;
+		}
+		if (ch === "\"" || ch === "'" || ch === "`") {
+			inString = ch;
+			continue;
+		}
+		if (ch === "[") {
+			bracketDepth += 1;
+			continue;
+		}
+		if (ch === "]") {
+			bracketDepth -= 1;
+			if (bracketDepth === 0) break;
+			continue;
+		}
+		if (bracketDepth < 1) continue;
+
+		if (ch === "{") {
+			if (braceDepth === 0) objStart = i;
+			braceDepth += 1;
+			continue;
+		}
+		if (ch === "}") {
+			braceDepth -= 1;
+			if (braceDepth === 0 && objStart !== -1) {
+				ranges.push({ start: objStart, end: i + 1 });
+				objStart = -1;
+			}
+		}
+	}
+
+	return ranges;
+}
+
+function getModuleName (block) {
+	const match = block.match(/module\s*:\s*["']([^"']+)["']/);
+	return match ? match[1] : null;
+}
+
+function replaceNumberField (block, key, value) {
+	const regex = new RegExp(`(${key}\\s*:\\s*)(-?\\d+(?:\\.\\d+)?)`);
+	if (!regex.test(block)) return block;
+	return block.replace(regex, `$1${value}`);
+}
+
+function replaceStringField (block, key, value) {
+	const regex = new RegExp(`(${key}\\s*:\\s*)(["'])([^"']*)(\\2)`);
+	if (!regex.test(block)) return block;
+	return block.replace(regex, `$1"${escapeForDoubleQuote(value)}"`);
+}
+
+function buildFeedsBlock (urls, indent) {
+	if (!Array.isArray(urls) || urls.length === 0) {
+		return `${indent}feeds: []`;
+	}
+	const feedIndent = `${indent}\t`;
+	const entryIndent = `${indent}\t\t`;
+	const entries = urls.map((url, index) => {
+		const title = `Feed ${index + 1}`;
+		return `${feedIndent}{\n${entryIndent}title: "${escapeForDoubleQuote(title)}",\n${entryIndent}url: "${escapeForDoubleQuote(url)}"\n${feedIndent}}`;
+	}).join(",\n");
+
+	return `${indent}feeds: [\n${entries}\n${indent}]`;
+}
+
+function replaceFeedsBlock (block, urls) {
+	const match = block.match(/(\n[ \t]*)feeds\s*:\s*\[[\s\S]*?\]/);
+	if (!match) return block;
+	const indent = match[1];
+	const feedsBlock = buildFeedsBlock(urls, indent);
+	return block.replace(match[0], `\n${feedsBlock}`);
+}
 
 /**
  * Server
@@ -22,6 +148,8 @@ function Server (configObj) {
 	const config = configObj.fullConf;
 	const app = express();
 	const port = process.env.MM_PORT || config.port;
+	const basePath = normalizeBasePath(config.basePath);
+	const withBasePath = (route) => `${basePath}${String(route).replace(/^\/+/, "")}`;
 	const serverSockets = new Set();
 	let server = null;
 
@@ -91,6 +219,7 @@ function Server (configObj) {
 			app.use(helmet(config.httpHeaders));
 			app.use(express.json());
 			app.use("/js", express.static(__dirname));
+			app.use(withBasePath("RemoteApp"), express.static(path.resolve(`${global.root_path}/RemoteApp`)));
 
 			if (config.hideConfigSecrets) {
 				app.get("/config/config.env", (req, res) => {
@@ -112,10 +241,25 @@ function Server (configObj) {
 			const getStartup = (req, res) => res.send(startUp);
 
 			const getConfig = (req, res) => {
-				if (config.hideConfigSecrets) {
-					res.send(configObj.redactedConf);
-				} else {
-					res.send(configObj.fullConf);
+				try {
+					const refreshed = Utils.loadConfig();
+					const hideSecrets = refreshed && refreshed.fullConf ? refreshed.fullConf.hideConfigSecrets : false;
+					if (hideSecrets) {
+						res.send(refreshed.redactedConf);
+					} else if (refreshed && refreshed.fullConf) {
+						res.send(refreshed.fullConf);
+					} else if (config.hideConfigSecrets) {
+						res.send(configObj.redactedConf);
+					} else {
+						res.send(configObj.fullConf);
+					}
+				} catch (error) {
+					Log.error("Error reloading config for /config:", error);
+					if (config.hideConfigSecrets) {
+						res.send(configObj.redactedConf);
+					} else {
+						res.send(configObj.fullConf);
+					}
 				}
 			};
 			app.get("/config", (req, res) => getConfig(req, res));
@@ -147,6 +291,146 @@ function Server (configObj) {
 
 						Log.log("Config updated successfully");
 						res.status(200).send("Config updated successfully");
+					});
+				});
+			});
+
+			app.get(withBasePath("remote/status"), (req, res) => {
+				const clients = io && io.engine ? io.engine.clientsCount : 0;
+				res.status(200).json({ ok: true, clients, ts: Date.now() });
+			});
+
+			app.post(withBasePath("remote/command"), (req, res) => {
+				const type = req && req.body ? req.body.type : null;
+				if (type === "reload" || type === "apply_all") {
+					Log.info("Remote reload request received, notifying clients");
+					io.emit("RELOAD");
+					res.status(200).json({ ok: true });
+					return;
+				}
+				res.status(400).json({ ok: false, error: "Unsupported command" });
+			});
+
+			app.post(withBasePath("remote/config"), (req, res) => {
+				const payload = req && req.body ? req.body : {};
+				const updates = {};
+
+				const weather = payload.weather || null;
+				const lat = weather && typeof weather.lat !== "undefined" ? Number(weather.lat) : null;
+				const lon = weather && typeof weather.lon !== "undefined" ? Number(weather.lon) : null;
+				if (Number.isFinite(lat) && Number.isFinite(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+					updates.weather = { lat, lon };
+				}
+
+				const calendar = payload.calendar || null;
+				if (calendar && typeof calendar.url === "string") {
+					const url = calendar.url.trim();
+					if (url === "" || /^https?:\/\//.test(url)) {
+						updates.calendar = { url };
+					}
+				}
+
+				const newsfeed = payload.newsfeed || null;
+				if (newsfeed && Array.isArray(newsfeed.feeds)) {
+					const feeds = newsfeed.feeds
+						.map((feed) => (typeof feed === "string" ? feed.trim() : ""))
+						.filter((feed) => feed && /^https?:\/\//.test(feed));
+					updates.newsfeed = { feeds };
+				}
+
+				const locale = payload.locale || null;
+				if (locale && typeof locale.language === "string") {
+					const lang = locale.language.trim();
+					if (["ro", "en", "de", "hu"].includes(lang)) {
+						updates.locale = Object.assign(updates.locale || {}, { language: lang });
+					}
+				}
+				if (locale && typeof locale.timeFormat !== "undefined") {
+					const tf = Number(locale.timeFormat);
+					if (tf === 12 || tf === 24) {
+						updates.locale = Object.assign(updates.locale || {}, { timeFormat: tf });
+					}
+				}
+
+				if (Object.keys(updates).length === 0) {
+					res.status(400).json({ ok: false, error: "No valid updates" });
+					return;
+				}
+
+				const configFilePath = getConfigFilePath();
+				fs.readFile(configFilePath, "utf8", (err, data) => {
+					if (err) {
+						Log.error("Error reading config file:", err);
+						res.status(500).json({ ok: false, error: "Error reading config file" });
+						return;
+					}
+
+					let newConfig = data;
+					let changed = false;
+					let weatherCount = 0;
+					let calendarCount = 0;
+					let newsfeedCount = 0;
+					let localeChanged = false;
+
+					if (updates.locale && updates.locale.language) {
+						const next = replaceTopLevelString(newConfig, "language", updates.locale.language);
+						if (next !== newConfig) {
+							newConfig = next;
+							changed = true;
+							localeChanged = true;
+						}
+					}
+					if (updates.locale && updates.locale.timeFormat) {
+						const next = replaceTopLevelNumber(newConfig, "timeFormat", updates.locale.timeFormat);
+						if (next !== newConfig) {
+							newConfig = next;
+							changed = true;
+							localeChanged = true;
+						}
+					}
+
+					const ranges = getModulesArrayRanges(newConfig);
+					for (let i = ranges.length - 1; i >= 0; i--) {
+						const range = ranges[i];
+						const block = newConfig.slice(range.start, range.end);
+						const moduleName = getModuleName(block);
+						let updatedBlock = block;
+
+						if (moduleName === "weather" && updates.weather) {
+							updatedBlock = replaceNumberField(updatedBlock, "lat", updates.weather.lat);
+							updatedBlock = replaceNumberField(updatedBlock, "lon", updates.weather.lon);
+							if (updatedBlock !== block) weatherCount += 1;
+						}
+
+						if (moduleName === "calendar" && updates.calendar) {
+							updatedBlock = replaceStringField(updatedBlock, "url", updates.calendar.url);
+							if (updatedBlock !== block) calendarCount += 1;
+						}
+
+						if (moduleName === "newsfeed" && updates.newsfeed) {
+							updatedBlock = replaceFeedsBlock(updatedBlock, updates.newsfeed.feeds);
+							if (updatedBlock !== block) newsfeedCount += 1;
+						}
+
+						if (updatedBlock !== block) {
+							newConfig = newConfig.slice(0, range.start) + updatedBlock + newConfig.slice(range.end);
+							changed = true;
+						}
+					}
+
+					if (!changed) {
+						res.status(200).json({ ok: true, updated: { weather: 0, calendar: 0, newsfeed: 0, locale: false } });
+						return;
+					}
+
+					fs.writeFile(configFilePath, newConfig, "utf8", (writeErr) => {
+						if (writeErr) {
+							Log.error("Error writing config file:", writeErr);
+							res.status(500).json({ ok: false, error: "Error writing config file" });
+							return;
+						}
+						Log.log("Remote config updated successfully");
+						res.status(200).json({ ok: true, updated: { weather: weatherCount, calendar: calendarCount, newsfeed: newsfeedCount, locale: localeChanged } });
 					});
 				});
 			});

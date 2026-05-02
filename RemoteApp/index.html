@@ -114,10 +114,10 @@
         <div class="divider"></div>
 
         <div class="btn-row">
-          <button class="btn btn-primary" onclick="sendCommand({type:'apply_all'});showToast((translations[currentLang]||translations.ro).toast_applied)" data-i18n="btn_apply_mirror">
+          <button class="btn btn-primary" onclick="runCommand({type:'apply_all'}, (translations[currentLang]||translations.ro).toast_applied)" data-i18n="btn_apply_mirror">
             Aplică pe Oglindă
           </button>
-          <button class="btn btn-ghost" onclick="sendCommand({type:'reload'});showToast((translations[currentLang]||translations.ro).toast_reload)" data-i18n="btn_reload">
+          <button class="btn btn-ghost" onclick="runCommand({type:'reload'}, (translations[currentLang]||translations.ro).toast_reload)" data-i18n="btn_reload">
             Reîncarcă
           </button>
         </div>
@@ -297,7 +297,7 @@
         <div style="font-size:12px; color:var(--text-dim); margin-bottom:12px;" data-i18n="wdesc_sysinfo" data-i18n="wdesc_sysinfo">CPU, RAM, temperatură procesor.</div>
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <span class="badge badge-warn" data-i18n="badge_inactive">Inactiv</span>
-          <button class="btn btn-ghost" style="padding:5px 12px; font-size:12px;" onclick="sendCommand({type:'enable_widget',widget:'sysinfo'});showToast((translations[currentLang]||translations.ro).toast_widget_active)" data-i18n="btn_activate">Activează</button>
+          <button class="btn btn-ghost" style="padding:5px 12px; font-size:12px;" onclick="runCommand({type:'enable_widget',widget:'sysinfo'}, (translations[currentLang]||translations.ro).toast_widget_active)" data-i18n="btn_activate">Activează</button>
         </div>
       </div>
     </div>
@@ -575,7 +575,7 @@
         <span data-i18n="info_wifi_warning">⚠ Modificarea credențialelor Wi-Fi va reporni modulul wireless al Raspberry Pi. Asigurați-vă că datele sunt corecte.</span>
       </div>
       <div class="btn-row">
-        <button class="btn btn-primary" data-i18n="btn_save_wifi" onclick="sendCommand({type:'wifi_config', ssid: document.getElementById('wifi-ssid').value, pass:'***'});showToast((translations[currentLang]||translations.ro).toast_wifi)">
+        <button class="btn btn-primary" data-i18n="btn_save_wifi" onclick="runCommand({type:'wifi_config', ssid: document.getElementById('wifi-ssid').value, pass:'***'}, (translations[currentLang]||translations.ro).toast_wifi)">
           Salvează & Aplică Wi-Fi
         </button>
       </div>
@@ -696,9 +696,9 @@
       <div class="card">
         <div class="card-title">⚡ <span data-i18n="card_system">Control Sistem RPi4</span></div>
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
-          <button class="btn btn-ghost" onclick="sendCommand({type:'restart_mm'});showToast('↺ MagicMirror² repornit!')" data-i18n="btn_restart_mm">Repornire MM²</button>
-          <button class="btn btn-ghost" onclick="sendCommand({type:'reboot'});showToast('↺ RPi4 repornește...')" data-i18n="btn_reboot">Repornire RPi</button>
-          <button class="btn btn-ghost" onclick="sendCommand({type:'shutdown'});showToast('⏻ Oprire programată...')" data-i18n="btn_shutdown">Oprire RPi</button>
+          <button class="btn btn-ghost" onclick="runCommand({type:'restart_mm'}, '↺ MagicMirror² repornit!')" data-i18n="btn_restart_mm">Repornire MM²</button>
+          <button class="btn btn-ghost" onclick="runCommand({type:'reboot'}, '↺ RPi4 repornește...')" data-i18n="btn_reboot">Repornire RPi</button>
+          <button class="btn btn-ghost" onclick="runCommand({type:'shutdown'}, '⏻ Oprire programată...')" data-i18n="btn_shutdown">Oprire RPi</button>
           <button class="btn btn-danger" onclick="confirmReset()" data-i18n="btn_factory_reset">Reset Fabrică</button>
         </div>
       </div>

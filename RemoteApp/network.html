@@ -136,7 +136,7 @@
         <span data-i18n="info_wifi_warning">⚠ Modificarea credențialelor Wi-Fi va reporni modulul wireless al Raspberry Pi. Asigurați-vă că datele sunt corecte.</span>
       </div>
       <div class="btn-row">
-        <button class="btn btn-primary" data-i18n="btn_save_wifi" onclick="sendCommand({type:'wifi_config', ssid: document.getElementById('wifi-ssid').value, pass:'***'});showToast((translations[currentLang]||translations.ro).toast_wifi)">
+        <button class="btn btn-primary" data-i18n="btn_save_wifi" onclick="runCommand({type:'wifi_config', ssid: document.getElementById('wifi-ssid').value, pass:'***'}, (translations[currentLang]||translations.ro).toast_wifi)">
           Salvează & Aplică Wi-Fi
         </button>
       </div>

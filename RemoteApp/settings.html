@@ -193,9 +193,9 @@
       <div class="card">
         <div class="card-title">⚡ <span data-i18n="card_system">Control Sistem RPi4</span></div>
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
-          <button class="btn btn-ghost" onclick="sendCommand({type:'restart_mm'});showToast('↺ MagicMirror² repornit!')" data-i18n="btn_restart_mm">Repornire MM²</button>
-          <button class="btn btn-ghost" onclick="sendCommand({type:'reboot'});showToast('↺ RPi4 repornește...')" data-i18n="btn_reboot">Repornire RPi</button>
-          <button class="btn btn-ghost" onclick="sendCommand({type:'shutdown'});showToast('⏻ Oprire programată...')" data-i18n="btn_shutdown">Oprire RPi</button>
+          <button class="btn btn-ghost" onclick="runCommand({type:'restart_mm'}, '↺ MagicMirror² repornit!')" data-i18n="btn_restart_mm">Repornire MM²</button>
+          <button class="btn btn-ghost" onclick="runCommand({type:'reboot'}, '↺ RPi4 repornește...')" data-i18n="btn_reboot">Repornire RPi</button>
+          <button class="btn btn-ghost" onclick="runCommand({type:'shutdown'}, '⏻ Oprire programată...')" data-i18n="btn_shutdown">Oprire RPi</button>
           <button class="btn btn-danger" onclick="confirmReset()" data-i18n="btn_factory_reset">Reset Fabrică</button>
         </div>
       </div>

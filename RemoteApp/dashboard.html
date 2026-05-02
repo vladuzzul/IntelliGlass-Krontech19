@@ -208,10 +208,10 @@
         </div>
 
         <div class="btn-row">
-          <button class="btn btn-primary" onclick="sendCommand({type:'apply_all'});showToast((translations[currentLang]||translations.ro).toast_applied)" data-i18n="btn_apply_mirror">
+          <button class="btn btn-primary" onclick="runCommand({type:'apply_all'}, (translations[currentLang]||translations.ro).toast_applied)" data-i18n="btn_apply_mirror">
             Aplică pe Oglindă
           </button>
-          <button class="btn btn-ghost" onclick="sendCommand({type:'reload'});showToast((translations[currentLang]||translations.ro).toast_reload)" data-i18n="btn_reload">
+          <button class="btn btn-ghost" onclick="runCommand({type:'reload'}, (translations[currentLang]||translations.ro).toast_reload)" data-i18n="btn_reload">
             Reîncarcă
           </button>
         </div>
