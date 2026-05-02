@@ -45,16 +45,9 @@
 
 <aside class="sidebar" id="main-sidebar">
   <div class="sidebar-section-label" data-i18n="side_mirror">Oglindiță</div>
-  <a class="sidebar-item" href="dashboard.html">
+  <a class="sidebar-item" href="index.html">
     <span class="si-icon">⬡</span> <span data-i18n="side_overview">Prezentare</span>
   </a>
-  <a class="sidebar-item" href="layout.html">
-    <span class="si-icon">⊞</span> <span data-i18n="side_layout">Aranjament</span>
-  </a>
-  <a class="sidebar-item" href="widgets.html">
-    <span class="si-icon">◧</span> <span data-i18n="side_widgets">Widget-uri</span>
-  </a>
-
   <div class="sidebar-section-label" data-i18n="side_customize">Personalizare</div>
   <a class="sidebar-item active" href="weather.html">
     <span class="si-icon">☁</span> <span data-i18n="side_weather">Vreme</span>
@@ -96,76 +89,15 @@
       <div class="card">
         <div class="card-title">📍 <span data-i18n="card_location">Locație & Setări</span></div>
         <div class="form-row">
-          <label data-i18n="lbl_city">Orașul tău</label>
-          <input type="text" id="weather-city" value="Brașov" placeholder="ex: Cluj-Napoca, Sibiu...">
+          <label data-i18n="lbl_latitude">Latitudine</label>
+          <input type="text" id="weather-latitude" value="47.6782" placeholder="ex: 47.6782, 46.7692...">
         </div>
         <div class="form-row">
-          <label data-i18n="lbl_country">Cod țară (ISO)</label>
-          <input type="text" id="weather-country" value="RO" placeholder="ex: RO, DE, GB">
-        </div>
-        <div class="form-row">
-          <label data-i18n="lbl_tempunit">Unitate temperatură</label>
-          <select id="temp-unit">
-            <option value="metric" selected data-i18n="opt_celsius">Celsius (°C)</option>
-            <option value="imperial" data-i18n="opt_fahrenheit">Fahrenheit (°F)</option>
-          </select>
-        </div>
-        <div class="form-row">
-          <label data-i18n="lbl_forecastdays">Zile prognoză afișate</label>
-          <select id="forecast-days">
-            <option value="3" data-i18n="opt_3days">3 zile</option>
-            <option value="5" selected data-i18n="opt_5days">5 zile</option>
-            <option value="7" data-i18n="opt_7days">7 zile</option>
-          </select>
-        </div>
-        <div class="toggle-row">
-          <div><div class="toggle-info" data-i18n="tog_wind">Afișare Vânt</div></div>
-          <div class="toggle-switch on" id="tog-wind" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
-        </div>
-        <div class="toggle-row">
-          <div><div class="toggle-info" data-i18n="tog_humidity">Afișare Umiditate</div></div>
-          <div class="toggle-switch" id="tog-humidity" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
-        </div>
-        <div class="toggle-row">
-          <div><div class="toggle-info" data-i18n="tog_autoupdate">Actualizare automată (15 min)</div></div>
-          <div class="toggle-switch on" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
+          <label data-i18n="lbl_longitude">Longitudine</label>
+          <input type="text" id="weather-longitude" value="23.5806" placeholder="ex: 23.5806, 24.6789...">
         </div>
         <div class="btn-row">
           <button class="btn btn-primary" onclick="applyWeather()" data-i18n="btn_apply_weather">Aplică Setări Vreme</button>
-          <button class="btn btn-ghost" onclick="fetchWeatherPreview()" data-i18n="btn_refresh_weather">Actualizează Previzualizare</button>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-title">🌤 Prognoză Actuală — <span id="weather-city-label">Brașov</span></div>
-        <div id="weather-preview-rows">
-          <div class="weather-row">
-            <span style="font-size:13px; color:var(--text-muted);">Astăzi</span>
-            <span style="font-size:20px;">🌤</span>
-            <span style="font-size:15px; font-weight:500; color:var(--linen);">8.6° / 5.3°</span>
-          </div>
-          <div class="weather-row">
-            <span style="font-size:13px; color:var(--text-muted);">Mâine</span>
-            <span style="font-size:20px;">🌧</span>
-            <span style="font-size:15px; font-weight:500; color:var(--linen);">6.3° / 2.2°</span>
-          </div>
-          <div class="weather-row">
-            <span style="font-size:13px; color:var(--text-muted);">Joi</span>
-            <span style="font-size:20px;">☀</span>
-            <span style="font-size:15px; font-weight:500; color:var(--linen);">11.7° / 0.7°</span>
-          </div>
-          <div class="weather-row">
-            <span style="font-size:13px; color:var(--text-muted);">Vineri</span>
-            <span style="font-size:20px;">⛅</span>
-            <span style="font-size:15px; font-weight:500; color:var(--linen);">13.5° / 5.1°</span>
-          </div>
-          <div class="weather-row">
-            <span style="font-size:13px; color:var(--text-muted);">Sâmbătă</span>
-            <span style="font-size:20px;">☀</span>
-            <span style="font-size:15px; font-weight:500; color:var(--linen);">15.7° / 2.7°</span>
-          </div>
-        </div>
-        <div class="info-box" style="margin-top:14px;">
-          <span data-i18n="info_weather_api">💡 Datele meteo sunt preluate via API OpenWeatherMap. Configurează cheia API în secțiunea Setări → API Keys pentru date în timp real.</span>
         </div>
       </div>
     </div>

@@ -294,19 +294,16 @@ function applyTicker() {
 }
 
 function applyWeather() {
-  const city = getInput('weather-city').substring(0, 60) || 'Brașov';
-  const country = getInput('weather-country').substring(0, 4).toUpperCase() || 'RO';
-  const unitEl = document.getElementById('temp-unit');
-  const unit = (unitEl && unitEl.value === 'imperial') ? 'imperial' : 'metric';
-  setText('weather-city-label', city);
-  setText('stat-city', city + ', ' + country);
-  sendCommand({ type: 'set_weather', city, country, unit });
-  showToast('✓ Vreme actualizată pentru ' + city + '!');
-}
+  const lat = parseFloat(document.getElementById('weather-latitude').value.trim());
+  const lon = parseFloat(document.getElementById('weather-longitude').value.trim());
 
-function fetchWeatherPreview() {
-  showToast('↻ Se actualizează prognoza...');
-  sendCommand({ type: 'get_weather' });
+  if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+    showToast('✗ Vă rugăm introduceți coordonate valide.', 'err');
+    return;
+  }
+
+  sendCommand({ type: 'set_weather', lat, lon });
+  showToast('Setări vreme actualizate!');
 }
 
 function applyCalendar() {
