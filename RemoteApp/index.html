@@ -100,16 +100,6 @@
         <div class="stat-sub" data-i18n="sub_rpi4">Raspberry Pi 4</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label" data-i18n="stat_temp_lbl">Temperatură</div>
-        <div class="stat-value" id="stat-temp">—</div>
-        <div class="stat-sub" id="stat-city">Brașov, RO</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label" data-i18n="stat_widgets_lbl">Widget-uri Active</div>
-        <div class="stat-value" id="stat-widgets">6</div>
-        <div class="stat-sub" data-i18n="stat_on_mirror">Pe oglindă</div>
-      </div>
-      <div class="stat-card">
         <div class="stat-label" data-i18n="stat_bright_lbl">Luminozitate</div>
         <div class="stat-value" id="bright-stat">75%</div>
         <div class="stat-sub" data-i18n="stat_adjustable">Reglabilă</div>
@@ -117,45 +107,6 @@
     </div>
 
     <div class="grid-2">
-      <!-- Mirror Preview -->
-      <div class="card">
-        <div class="card-title">◈ <span data-i18n="card_preview">Previzualizare Oglindă</span></div>
-        <div class="mirror-preview-wrap">
-          <div class="mirror-frame">
-            <div class="mirror-top">
-              <div>
-                <div class="mirror-date" id="mirror-date-label">Vineri, 24 aprilie 2026</div>
-                <div class="mirror-time-big" id="mirror-clock">00:00</div>
-              </div>
-              <div class="mirror-cal">
-                <div style="color:rgba(247,236,225,0.6); font-size:9px; margin-bottom:4px;">CALENDAR</div>
-                <div id="mirror-cal-1">↪ Mers la sala &nbsp;&nbsp; 08:00</div>
-                <div id="mirror-cal-2">↪ Meeting Echipa &nbsp;&nbsp; 09:45</div>
-                <div id="mirror-cal-3">↪ Programare Tuns &nbsp;&nbsp; 19:30</div>
-              </div>
-            </div>
-            <div class="mirror-center">
-              <div class="mirror-greeting" id="mirror-greeting-text">Great to see you!</div>
-            </div>
-            <div class="mirror-bottom">
-              <div class="mirror-weather">
-                <div class="mirror-weather-temp" id="mirror-temp-display">—</div>
-                <div id="mirror-weather-sub" data-i18n="mirror_loading" data-i18n="mirror_loading">Se încarcă...</div>
-                <div style="margin-top:4px; opacity:0.7;" id="mirror-forecast-sub"></div>
-              </div>
-              <div style="font-size:9px; color:rgba(247,236,225,0.2); text-align:right;">
-                INTELLIGLASS<br><span style="color:rgba(141,134,201,0.4);">◈ Smart Mirror</span>
-              </div>
-            </div>
-            <div class="mirror-ticker">
-              <span class="ticker-inner" id="mirror-ticker">
-                📰 Conectează oglinda pentru știri live &nbsp;&nbsp;&nbsp;⬥&nbsp;&nbsp;&nbsp; 🌤 IntelliGlass — Smart Mirror Controller &nbsp;&nbsp;&nbsp;⬥&nbsp;&nbsp;&nbsp; ◈ Kronsoft 2026 &nbsp;&nbsp;&nbsp;⬥&nbsp;&nbsp;&nbsp;
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <!-- Quick Controls -->
       <div class="card">
         <div class="card-title">⚡ <span data-i18n="card_quickcontrol">Control Rapid</span></div>
@@ -167,52 +118,6 @@
         </div>
 
         <div class="divider"></div>
-
-        <div class="toggle-row">
-          <div>
-            <div class="toggle-info" data-i18n="tog_nightmode">Modul Noapte</div>
-            <div class="toggle-sub" data-i18n="tog_nightmode_sub">Reduce luminozitatea după 22:00</div>
-          </div>
-          <div class="toggle-switch on" id="tog-night" onclick="toggleSwitch(this,'night_mode')">
-            <div class="toggle-thumb"></div>
-          </div>
-        </div>
-        <div class="toggle-row">
-          <div>
-            <div class="toggle-info" data-i18n="tog_clock">Afișare Ceas</div>
-            <div class="toggle-sub" data-i18n="tog_clock_sub">Ora digitală pe oglindă</div>
-          </div>
-          <div class="toggle-switch on" id="tog-clock" onclick="toggleSwitch(this,'show_clock')">
-            <div class="toggle-thumb"></div>
-          </div>
-        </div>
-        <div class="toggle-row">
-          <div>
-            <div class="toggle-info" data-i18n="tog_ticker">Ticker Știri</div>
-            <div class="toggle-sub" data-i18n="tog_ticker_sub">Bandă derulantă în josul oglinzii</div>
-          </div>
-          <div class="toggle-switch on" id="tog-ticker" onclick="toggleSwitch(this,'show_ticker')">
-            <div class="toggle-thumb"></div>
-          </div>
-        </div>
-        <div class="toggle-row">
-          <div>
-            <div class="toggle-info" data-i18n="tog_weather">Afișare Vreme</div>
-            <div class="toggle-sub" data-i18n="tog_weather_sub">Prognoză meteo pe oglindă</div>
-          </div>
-          <div class="toggle-switch on" id="tog-weather" onclick="toggleSwitch(this,'show_weather')">
-            <div class="toggle-thumb"></div>
-          </div>
-        </div>
-        <div class="toggle-row">
-          <div>
-            <div class="toggle-info" data-i18n="tog_calendar">Afișare Calendar</div>
-            <div class="toggle-sub" data-i18n="tog_calendar_sub">Evenimente Google Calendar</div>
-          </div>
-          <div class="toggle-switch on" id="tog-cal" onclick="toggleSwitch(this,'show_calendar')">
-            <div class="toggle-thumb"></div>
-          </div>
-        </div>
 
         <div class="btn-row">
           <button class="btn btn-primary" onclick="sendCommand({type:'apply_all'});showToast((translations[currentLang]||translations.ro).toast_applied)" data-i18n="btn_apply_mirror">
