@@ -144,6 +144,7 @@ const state = {
 
 const CONNECTION_STORAGE_KEY = 'intelliglass-remote-connection';
 const LOCAL_UI_STORAGE_KEY = 'intelliglass-remote-ui';
+let sourceHealthRequestId = 0;
 
 function loadConnection() {
   try {
@@ -310,6 +311,7 @@ function connectWS(options = {}) {
 function disconnectWS() {
   state.connected = false;
   state.apiBase = '';
+  sourceHealthRequestId += 1;
   clearConnection();
   if (state.statusTimer) {
     clearInterval(state.statusTimer);
@@ -452,22 +454,157 @@ async function fetchConfigSnapshot() {
 }
 
 function getPrimaryCalendarUrl(config) {
-  if (!config || !Array.isArray(config.modules)) return '';
+  const urls = getCalendarUrls(config);
+  return urls.length > 0 ? urls[0] : '';
+}
 
+function parseHostnameFromUrl(url) {
+  if (typeof url !== 'string' || !url.trim()) return '';
+  try {
+    return new URL(url).hostname.replace(/^www\./i, '').trim();
+  } catch (e) {
+    return '';
+  }
+}
+
+function normalizeFeed(feed) {
+  if (typeof feed === 'string' && feed.trim()) {
+    return { title: '', url: feed.trim() };
+  }
+  if (!feed || typeof feed !== 'object' || typeof feed.url !== 'string') return null;
+  const url = feed.url.trim();
+  if (!url) return null;
+  const title = typeof feed.title === 'string'
+    ? feed.title.trim()
+    : (typeof feed.name === 'string' ? feed.name.trim() : '');
+  return { title, url };
+}
+
+function getNewsFeeds(config) {
+  if (!config || !Array.isArray(config.modules)) return [];
+  const newsModule = config.modules.find((mod) => mod && mod.module === 'newsfeed' && mod.config && Array.isArray(mod.config.feeds));
+  if (!newsModule) return [];
+  return newsModule.config.feeds
+    .map(normalizeFeed)
+    .filter((feed) => feed && /^https?:\/\//.test(feed.url));
+}
+
+function getCalendarUrls(config) {
+  if (!config || !Array.isArray(config.modules)) return [];
+
+  const urls = [];
   for (const mod of config.modules) {
     if (!mod || mod.module !== 'calendar' || !mod.config || !Array.isArray(mod.config.calendars)) continue;
     for (const cal of mod.config.calendars) {
-      if (cal && typeof cal.url === 'string') return cal.url;
+      if (!cal || typeof cal.url !== 'string') continue;
+      const url = cal.url.trim();
+      if (url) urls.push(url);
     }
   }
-  return '';
+  return urls;
+}
+
+function getFeedLabel(feed, index) {
+  if (feed && typeof feed.title === 'string' && feed.title.trim()) {
+    return feed.title.trim();
+  }
+  const host = feed && typeof feed.url === 'string' ? parseHostnameFromUrl(feed.url) : '';
+  if (host) return host;
+  return `Feed ${index + 1}`;
+}
+
+function buildSourceHealthMap(results) {
+  const healthByUrl = Object.create(null);
+  if (!Array.isArray(results)) return healthByUrl;
+
+  results.forEach((entry) => {
+    if (!entry || typeof entry.url !== 'string') return;
+    const key = entry.url.trim();
+    if (!key) return;
+    healthByUrl[key] = {
+      available: Boolean(entry.available),
+      status: Number.isInteger(entry.status) ? entry.status : null,
+      error: typeof entry.error === 'string' ? entry.error : ''
+    };
+  });
+
+  return healthByUrl;
+}
+
+function buildNewsAvailability(config, healthByUrl = null) {
+  if (!config || !Array.isArray(config.modules)) return 'Waiting for mirror config';
+
+  const feeds = getNewsFeeds(config);
+  if (feeds.length === 0) return 'No feeds configured';
+
+  if (healthByUrl && typeof healthByUrl === 'object') {
+    const unavailableFeeds = feeds
+      .map((feed, idx) => ({ feed, idx }))
+      .filter((entry) => {
+        const status = healthByUrl[entry.feed.url];
+        return status && status.available === false;
+      });
+
+    if (unavailableFeeds.length > 0) {
+      if (unavailableFeeds.length === 1) {
+        const only = unavailableFeeds[0];
+        return `Error: ${getFeedLabel(only.feed, only.idx)} unavailable`;
+      }
+      return `Error: ${unavailableFeeds.length}/${feeds.length} feeds unavailable`;
+    }
+  }
+
+  const feedLabels = feeds.map((feed, idx) => {
+    return getFeedLabel(feed, idx);
+  });
+
+  if (feedLabels.length === 1) return `1 feed: ${feedLabels[0]}`;
+  if (feedLabels.length === 2) return `2 feeds: ${feedLabels[0]}, ${feedLabels[1]}`;
+  return `${feedLabels.length} feeds: ${feedLabels[0]}, ${feedLabels[1]} +${feedLabels.length - 2} more`;
+}
+
+function getCalendarSourceLabel(url) {
+  const host = parseHostnameFromUrl(url);
+  if (!host) return 'Custom calendar URL';
+
+  if (host.endsWith('google.com')) return 'Google Calendar';
+  if (host.endsWith('icloud.com')) return 'Apple iCloud Calendar';
+  if (host.endsWith('outlook.com') || host.endsWith('office365.com') || host.endsWith('live.com')) {
+    return 'Microsoft Calendar';
+  }
+  return host;
+}
+
+function buildCalendarAvailability(config, healthByUrl = null) {
+  if (!config || !Array.isArray(config.modules)) return 'Waiting for mirror config';
+
+  const uniqueUrls = Array.from(new Set(getCalendarUrls(config)));
+  if (uniqueUrls.length === 0) return 'No calendar configured';
+
+  if (healthByUrl && typeof healthByUrl === 'object') {
+    const unavailableUrls = uniqueUrls.filter((url) => {
+      const status = healthByUrl[url];
+      return status && status.available === false;
+    });
+    if (unavailableUrls.length > 0) {
+      if (unavailableUrls.length === 1) {
+        return `Error: ${getCalendarSourceLabel(unavailableUrls[0])} unavailable`;
+      }
+      return `Error: ${unavailableUrls.length}/${uniqueUrls.length} sources unavailable`;
+    }
+  }
+
+  const labels = Array.from(new Set(uniqueUrls.map(getCalendarSourceLabel)));
+  if (uniqueUrls.length === 1) return `1 source: ${labels[0]}`;
+  if (labels.length === 1) return `${uniqueUrls.length} sources: ${labels[0]}`;
+  return `${uniqueUrls.length} sources: ${labels[0]} +${labels.length - 1} more`;
 }
 
 function updateOverviewStatsFromConfig(config) {
   if (!config || !Array.isArray(config.modules)) {
     setText('stat-weather', 'Not set');
-    setText('stat-news', '0 feeds');
-    setText('stat-calendar', 'Not set');
+    setText('stat-news', buildNewsAvailability(config));
+    setText('stat-calendar', buildCalendarAvailability(config));
     return;
   }
 
@@ -481,25 +618,41 @@ function updateOverviewStatsFromConfig(config) {
     }
   }
   setText('stat-weather', weatherText);
+  setText('stat-news', buildNewsAvailability(config));
+  setText('stat-calendar', buildCalendarAvailability(config));
+}
 
-  let feedCount = 0;
-  const newsModule = config.modules.find((mod) => mod.module === 'newsfeed' && mod.config && Array.isArray(mod.config.feeds));
-  if (newsModule && Array.isArray(newsModule.config.feeds)) {
-    feedCount = newsModule.config.feeds.filter((feed) => {
-      if (typeof feed === 'string') return feed.trim();
-      if (feed && typeof feed.url === 'string') return feed.url.trim();
-      return false;
-    }).length;
+async function refreshOverviewSourceHealth(config) {
+  if (!state.connected || !state.apiBase) return;
+  if (!config || !Array.isArray(config.modules)) return;
+
+  const newsUrls = getNewsFeeds(config).map((feed) => feed.url);
+  const calendarUrls = getCalendarUrls(config);
+  if (newsUrls.length === 0 && calendarUrls.length === 0) return;
+
+  const requestId = ++sourceHealthRequestId;
+  try {
+    const res = await fetch(state.apiBase + 'remote/source-health', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newsUrls, calendarUrls })
+    });
+    if (!res.ok) throw new Error('source health ' + res.status);
+
+    const data = await res.json();
+    if (requestId !== sourceHealthRequestId) return;
+
+    const healthByUrl = buildSourceHealthMap(data && Array.isArray(data.results) ? data.results : []);
+    setText('stat-news', buildNewsAvailability(config, healthByUrl));
+    setText('stat-calendar', buildCalendarAvailability(config, healthByUrl));
+  } catch (e) {
+    if (requestId !== sourceHealthRequestId) return;
   }
-  setText('stat-news', `${feedCount} feeds`);
-
-  const calendarUrl = getPrimaryCalendarUrl(config);
-  const calendarText = (typeof calendarUrl === 'string' && calendarUrl.trim()) ? 'Configured' : 'Not set';
-  setText('stat-calendar', calendarText);
 }
 
 function applyConfigToUI(config) {
   updateOverviewStatsFromConfig(config);
+  refreshOverviewSourceHealth(config);
   if (!config || !Array.isArray(config.modules)) return;
 
   const weatherModule = config.modules.find((mod) => mod.module === 'weather' && mod.config);

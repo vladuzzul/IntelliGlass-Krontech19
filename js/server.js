@@ -373,6 +373,123 @@ function upsertComplimentsUpdateInterval (block, updateIntervalMs) {
 	return block.slice(0, moduleCloseIndex) + configBlock + block.slice(moduleCloseIndex);
 }
 
+const REMOTE_SOURCE_CHECK_TIMEOUT_MS = 5000;
+const REMOTE_SOURCE_CHECK_MAX_URLS = 12;
+
+function buildRemoteSourceCheckList (newsUrls, calendarUrls) {
+	const requested = []
+		.concat(Array.isArray(newsUrls) ? newsUrls : [])
+		.concat(Array.isArray(calendarUrls) ? calendarUrls : []);
+	const unique = new Set();
+	const list = [];
+
+	for (const entry of requested) {
+		if (list.length >= REMOTE_SOURCE_CHECK_MAX_URLS) break;
+		if (typeof entry !== "string") continue;
+		const rawUrl = entry.trim();
+		if (!rawUrl || unique.has(rawUrl)) continue;
+		const checkUrl = /^webcal:\/\//i.test(rawUrl)
+			? `http://${rawUrl.replace(/^webcal:\/\//i, "")}`
+			: rawUrl;
+
+		let parsed;
+		try {
+			parsed = new URL(checkUrl);
+		} catch {
+			continue;
+		}
+		if (parsed.protocol !== "http:" && parsed.protocol !== "https:") continue;
+
+		unique.add(rawUrl);
+		list.push({
+			requestedUrl: rawUrl,
+			fetchUrl: parsed.toString()
+		});
+	}
+
+	return list;
+}
+
+function normalizeSourceCheckError (error) {
+	if (!error) return "Unknown error";
+	if (error.name === "AbortError") return "Request timed out";
+	if (error.code === "ENOTFOUND") return "Host not found";
+	if (error.code === "ECONNREFUSED") return "Connection refused";
+	if (error.code === "ETIMEDOUT") return "Connection timed out";
+	return error.message || "Network error";
+}
+
+async function checkRemoteSourceUrl (url) {
+	const attempts = [
+		{ method: "HEAD", headers: {} },
+		{ method: "GET", headers: { Range: "bytes=0-0" } }
+	];
+	let lastFailure = null;
+
+	for (let i = 0; i < attempts.length; i++) {
+		const attempt = attempts[i];
+		const controller = new AbortController();
+		const timeoutHandle = setTimeout(() => controller.abort(), REMOTE_SOURCE_CHECK_TIMEOUT_MS);
+		try {
+			const response = await fetch(url, {
+				method: attempt.method,
+				redirect: "follow",
+				signal: controller.signal,
+				headers: {
+					"User-Agent": "MagicMirror-RemoteApp-HealthCheck/1.0",
+					...attempt.headers
+				}
+			});
+			clearTimeout(timeoutHandle);
+
+			if (response.ok) {
+				return {
+					available: true,
+					status: response.status,
+					method: attempt.method,
+					error: null
+				};
+			}
+
+			if (attempt.method === "HEAD" && [401, 403, 405, 501].includes(response.status)) {
+				lastFailure = {
+					available: false,
+					status: response.status,
+					method: attempt.method,
+					error: `HTTP ${response.status}`
+				};
+				continue;
+			}
+
+			return {
+				available: false,
+				status: response.status,
+				method: attempt.method,
+				error: `HTTP ${response.status}`
+			};
+		} catch (error) {
+			clearTimeout(timeoutHandle);
+			lastFailure = {
+				available: false,
+				status: null,
+				method: attempt.method,
+				error: normalizeSourceCheckError(error)
+			};
+			if (attempt.method === "HEAD") {
+				continue;
+			}
+			return lastFailure;
+		}
+	}
+
+	return lastFailure || {
+		available: false,
+		status: null,
+		method: "HEAD",
+		error: "Unknown error"
+	};
+}
+
 /**
  * Server
  * @param {object} configObj The MM config full and redacted
@@ -533,6 +650,37 @@ function Server (configObj) {
 			app.get(withBasePath("remote/status"), (req, res) => {
 				const clients = io && io.engine ? io.engine.clientsCount : 0;
 				res.status(200).json({ ok: true, clients, ts: Date.now() });
+			});
+
+			app.post(withBasePath("remote/source-health"), async (req, res) => {
+				try {
+					const payload = req && req.body ? req.body : {};
+					const checkList = buildRemoteSourceCheckList(payload.newsUrls, payload.calendarUrls);
+					if (checkList.length === 0) {
+						res.status(200).json({ ok: true, results: [], ts: Date.now() });
+						return;
+					}
+
+					const checks = await Promise.all(checkList.map(async ({ requestedUrl, fetchUrl }) => {
+						const result = await checkRemoteSourceUrl(fetchUrl);
+						return {
+							url: requestedUrl,
+							available: Boolean(result.available),
+							status: Number.isInteger(result.status) ? result.status : null,
+							method: result.method || null,
+							error: typeof result.error === "string" ? result.error : null
+						};
+					}));
+
+					res.status(200).json({
+						ok: true,
+						results: checks,
+						ts: Date.now()
+					});
+				} catch (error) {
+					Log.error("Error checking remote source health:", error);
+					res.status(500).json({ ok: false, error: "Failed to check source health" });
+				}
 			});
 
 			app.post(withBasePath("remote/command"), (req, res) => {
