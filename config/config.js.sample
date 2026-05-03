@@ -8,6 +8,23 @@
  * which will be converted to `config.js` while starting. For more information
  * see https://docs.magicmirror.builders/configuration/introduction.html#enviromnent-variables
  */
+
+const os = require("node:os");
+
+function getLocalIPv4() {
+	const interfaces = os.networkInterfaces();
+
+	for (const entries of Object.values(interfaces)) {
+		for (const entry of entries || []) {
+			if (entry.family === "IPv4" && !entry.internal) {
+				return entry.address;
+			}
+		}
+	}
+
+	return "127.0.0.1";
+}
+
 let config = {
 	address: "localhost",	// Address to listen on, can be:
 							// - "localhost", "127.0.0.1", "::1" to listen on loopback interface
