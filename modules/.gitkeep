@@ -7,7 +7,3 @@ git clone https://github.com/shbatm/MMM-Carousel
 git clone https://github.com/uxigene/MMM-QRCode
 cd MMM-QRCode
 npm install
-
-git clone https://github.com/SalekurPolas/MMM-Pinfo
-cd MMM-Pinfo
-npm install
