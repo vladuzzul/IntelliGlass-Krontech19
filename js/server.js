@@ -742,7 +742,7 @@ function Server (configObj) {
 				const locale = payload.locale || null;
 				if (locale && typeof locale.language === "string") {
 					const lang = locale.language.trim();
-					if (["ro", "en", "de", "hu"].includes(lang)) {
+					if (["ro", "en", "de", "hu", "ru", "it", "es", "fr"].includes(lang)) {
 						updates.locale = Object.assign(updates.locale || {}, { language: lang });
 					}
 				}

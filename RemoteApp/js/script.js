@@ -908,7 +908,7 @@ async function applyCalendar() {
 async function applyLocale() {
   const langEl = document.getElementById('set-lang');
   const tfEl = document.getElementById('set-timeformat');
-  const allowedLangs = ['ro','en','de','hu'];
+  const allowedLangs = ['ro','en','de', 'fr','hu', 'ru', 'it', 'es'];
   const lang = (langEl && allowedLangs.includes(langEl.value)) ? langEl.value : 'ro';
   const tf = (tfEl && tfEl.value === '12') ? '12' : '24';
   const result = await updateConfig({ locale: { language: lang, timeFormat: parseInt(tf) } });
