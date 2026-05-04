@@ -1,3 +1,6 @@
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
 const Log = require("logger");
 const weatherUtils = require("../provider-utils");
 const HTTPFetcher = require("#http_fetcher");
@@ -7,6 +10,59 @@ const HTTPFetcher = require("#http_fetcher");
  * see https://openweathermap.org/
  */
 class OpenWeatherMapProvider {
+	static #readCacheFile () {
+		try {
+			const raw = fs.readFileSync(OpenWeatherMapProvider.cacheFilePath, "utf8");
+			const parsed = JSON.parse(raw);
+			if (!parsed || typeof parsed !== "object" || !parsed.entries || typeof parsed.entries !== "object") {
+				return { entries: {} };
+			}
+			return parsed;
+		} catch (error) {
+			if (error.code && error.code !== "ENOENT") {
+				Log.warn(`[openweathermap] Failed to read cache file: ${error.message}`);
+			}
+			return { entries: {} };
+		}
+	}
+
+	static #writeCacheFile (cache) {
+		try {
+			fs.writeFileSync(OpenWeatherMapProvider.cacheFilePath, JSON.stringify(cache), "utf8");
+		} catch (error) {
+			Log.warn(`[openweathermap] Failed to write cache file: ${error.message}`);
+		}
+	}
+
+	static getCachedResponse (cacheKey, maxAgeMs) {
+		const cache = OpenWeatherMapProvider.#readCacheFile();
+		const cached = cache.entries[cacheKey];
+		if (!cached) {
+			return null;
+		}
+
+		if (Date.now() - cached.fetchedAt > maxAgeMs) {
+			delete cache.entries[cacheKey];
+			OpenWeatherMapProvider.#writeCacheFile(cache);
+			return null;
+		}
+
+		return cached;
+	}
+
+	static setCachedResponse (cacheKey, data, maxAgeMs) {
+		const cache = OpenWeatherMapProvider.#readCacheFile();
+		const existing = cache.entries[cacheKey];
+		if (existing && Date.now() - existing.fetchedAt < maxAgeMs) {
+			return;
+		}
+		cache.entries[cacheKey] = {
+			fetchedAt: Date.now(),
+			data
+		};
+		OpenWeatherMapProvider.#writeCacheFile(cache);
+	}
+
 	constructor (config) {
 		this.config = {
 			apiVersion: "3.0",
@@ -26,6 +82,7 @@ class OpenWeatherMapProvider {
 		this.onDataCallback = null;
 		this.onErrorCallback = null;
 		this.locationName = null;
+		this.cacheKey = null;
 	}
 
 	initialize () {
@@ -44,6 +101,11 @@ class OpenWeatherMapProvider {
 		}
 
 		this.#initializeFetcher();
+
+		const cached = OpenWeatherMapProvider.getCachedResponse(this.cacheKey, this.config.updateInterval);
+		if (cached && cached.data && cached.data.timezone) {
+			this.locationName = cached.data.timezone;
+		}
 	}
 
 	setCallbacks (onData, onError) {
@@ -53,6 +115,15 @@ class OpenWeatherMapProvider {
 
 	start () {
 		if (this.fetcher) {
+			const cached = OpenWeatherMapProvider.getCachedResponse(this.cacheKey, this.config.updateInterval);
+			if (cached) {
+				this.#handleResponse(cached.data);
+				const elapsed = Date.now() - cached.fetchedAt;
+				const nextDelay = Math.max(this.config.updateInterval - elapsed, 0);
+				this.fetcher.scheduleNextFetch(nextDelay);
+				return;
+			}
+
 			this.fetcher.startPeriodicFetch();
 		}
 	}
@@ -65,6 +136,7 @@ class OpenWeatherMapProvider {
 
 	#initializeFetcher () {
 		const url = this.#getUrl();
+		this.cacheKey = url;
 
 		this.fetcher = new HTTPFetcher(url, {
 			reloadInterval: this.config.updateInterval,
@@ -96,6 +168,8 @@ class OpenWeatherMapProvider {
 
 	#handleResponse (data) {
 		try {
+			OpenWeatherMapProvider.setCachedResponse(this.cacheKey, data, this.config.updateInterval);
+
 			// Set location name from timezone
 			if (data.timezone) {
 				this.locationName = data.timezone;
@@ -272,5 +346,7 @@ class OpenWeatherMapProvider {
 		return params;
 	}
 }
+
+OpenWeatherMapProvider.cacheFilePath = path.join(os.tmpdir(), "weather-cache.json");
 
 module.exports = OpenWeatherMapProvider;
