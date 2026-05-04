@@ -89,7 +89,7 @@ def _send_linux_key(key_name):
     try:
         # Best-effort: focus a Chromium/Electron window first, then send key.
         subprocess.run(
-            ["xdotool", "search", "--name", "MagicMirror", "windowactivate"],
+            ["xdotool", "search", "--name", TARGET_APP_NAME, "windowactivate"],
             check=False,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL
