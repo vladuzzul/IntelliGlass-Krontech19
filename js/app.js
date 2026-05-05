@@ -3,7 +3,7 @@ require("./alias-resolver");
 
 const fs = require("node:fs");
 const path = require("node:path");
-const Spawn = require("node:child_process").spawn;
+const { spawn: Spawn, spawnSync } = require("node:child_process");
 const Log = require("logger");
 
 // global absolute root path
@@ -26,6 +26,114 @@ Log.log(`Starting MagicMirror: v${global.version}`);
 
 // Log system information.
 Spawn("node ./js/systeminformation.js", { env: { ...process.env, ELECTRON_VERSION: `${process.versions.electron}` }, cwd: this.root_path, shell: true, detached: true, stdio: "inherit" });
+
+const venvDir = path.join(global.root_path, ".venv");
+const venvPython = process.platform === "win32"
+	? path.join(venvDir, "Scripts", "python.exe")
+	: path.join(venvDir, "bin", "python");
+const requirementsPath = path.join(global.root_path, "requirements.txt");
+
+/**
+ *
+ * @param command
+ * @param args
+ * @param label
+ */
+function runSyncOrExit (command, args, label) {
+	const result = spawnSync(command, args, { cwd: global.root_path, stdio: "inherit" });
+	if (result.error) {
+		Log.error(`${label} failed:`, result.error);
+		process.exit(1);
+	}
+	if (result.status !== 0) {
+		Log.error(`${label} failed with exit code: ${result.status}`);
+		process.exit(1);
+	}
+}
+
+/**
+ *
+ * @param candidate
+ */
+function isPython3 (candidate) {
+	const result = spawnSync(candidate, ["-c", "import sys; raise SystemExit(0 if sys.version_info[0] >= 3 else 1)"], { stdio: "ignore" });
+	return !result.error && result.status === 0;
+}
+
+/**
+ *
+ */
+function findBasePython () {
+	const candidates = [];
+	if (process.env.PYTHON) {
+		candidates.push(process.env.PYTHON);
+	}
+	if (process.platform === "win32") {
+		candidates.push("python");
+	} else {
+		candidates.push("python3", "python");
+	}
+
+	for (const candidate of candidates) {
+		if (isPython3(candidate)) {
+			return candidate;
+		}
+	}
+
+	return null;
+}
+
+/**
+ *
+ */
+function ensureVenv () {
+	if (fs.existsSync(venvPython)) {
+		return;
+	}
+	if (!fs.existsSync(requirementsPath)) {
+		Log.error("requirements.txt not found. Cannot create venv for finger.py.");
+		process.exit(1);
+	}
+
+	const basePython = findBasePython();
+	if (!basePython) {
+		Log.error("No system Python found to create a virtual environment.");
+		process.exit(1);
+	}
+
+	Log.log("Creating local Python venv for finger.py...");
+	runSyncOrExit(basePython, ["-m", "venv", venvDir], "Virtualenv creation");
+
+	Log.log("Installing Python dependencies from requirements.txt...");
+	runSyncOrExit(venvPython, ["-m", "pip", "install", "-r", requirementsPath], "Dependency install");
+}
+
+ensureVenv();
+
+const defaultTargetApp = process.platform === "darwin" ? "Electron" : "MagicMirror";
+const targetAppName = process.env.MM_TARGET_APP || defaultTargetApp;
+const fingerEnv = { ...process.env, MM_TARGET_APP: targetAppName };
+const fingerProc = Spawn(venvPython, ["finger.py"], {
+	env: fingerEnv,
+	cwd: global.root_path,
+	stdio: "inherit"
+});
+
+fingerProc.on("error", (err) => {
+	Log.error("Failed to start finger.py:", err);
+	process.exit(1);
+});
+
+fingerProc.on("exit", (code, signal) => {
+	if (signal) {
+		Log.error(`finger.py exited due to signal: ${signal}`);
+		process.exit(1);
+	}
+	if (code !== null && code !== 0) {
+		Log.error(`finger.py exited with code: ${code}`);
+		process.exit(1);
+	}
+});
 
 if (process.env.MM_CONFIG_FILE) {
 	global.configuration_file = process.env.MM_CONFIG_FILE.replace(`${global.root_path}/`, "");
