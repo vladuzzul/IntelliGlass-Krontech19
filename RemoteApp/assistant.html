@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; connect-src ws: wss: http: https:; img-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self';"
+    />
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta http-equiv="X-Frame-Options" content="DENY" />
+    <meta http-equiv="Referrer-Policy" content="no-referrer" />
+    <title>IntelliGlass — AI Assistant</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <nav class="topbar">
+      <div style="display:flex; align-items:center; gap:12px;">
+        <button class="hamburger" id="hamburger-btn" aria-label="Menu" onclick="toggleSidebar()"><span></span><span></span><span></span></button>
+        <div class="logo">
+          <div class="logo-icon">⿻</div>
+          <span>IntelliGlass</span>
+        </div>
+      </div>
+
+      <div class="topbar-right">
+        <div class="status-dot" id="conn-dot" style="background:#f87171;"></div>
+        <span class="status-label" id="conn-label">Disconnected</span>
+      </div>
+    </nav>
+
+    <div class="layout">
+      <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+      <aside class="sidebar" id="main-sidebar">
+        <div class="sidebar-section-label">Mirror</div>
+        <a class="sidebar-item" href="index.html"> <span class="si-icon">⬡</span> <span>Overview</span> </a>
+
+        <div class="sidebar-section-label">Personalization</div>
+        <a class="sidebar-item" href="weather.html"> <span class="si-icon">☁</span> <span>Weather</span> </a>
+        <a class="sidebar-item" href="news.html"> <span class="si-icon">◉</span> <span>News</span> </a>
+        <a class="sidebar-item" href="calendar.html"> <span class="si-icon">◫</span> <span>Calendar</span> </a>
+        <a class="sidebar-item active" href="assistant.html"> <span class="si-icon">✦</span> <span>AI Assistant</span> </a>
+
+        <div class="sidebar-section-label">System</div>
+        <a class="sidebar-item" href="network.html"> <span class="si-icon">⊛</span> <span>Network / Wi-Fi</span> </a>
+        <a class="sidebar-item" href="settings.html"> <span class="si-icon">⚙</span> <span>Settings</span> </a>
+
+        <div style="margin-top: auto; padding: 16px 8px 8px;">
+          <div style="font-size: 11px; color: var(--text-dim); line-height: 1.7;">
+            <span style="color:var(--linen); font-weight:600;">IntelliGlass</span><br />
+            <span id="sidebar-ip" style="color:rgba(141,134,201,0.4);">—</span>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main">
+        <div id="sec-assistant" class="section visible">
+          <div class="page-header">
+            <div class="page-title">AI Assistant Setup</div>
+            <div class="page-sub">Fast setup for quick and stable configuration on Raspberry Pi.</div>
+          </div>
+          <div class="accent-bar"></div>
+
+          <div class="grid-2">
+            <div class="card">
+              <div class="card-title">🔑 OpenAI</div>
+              <div class="form-row">
+                <label>OpenAI API key (rapid)</label>
+                <input type="password" id="assistant-chatgpt-api-key" placeholder="sk-..." />
+              </div>
+              <div class="form-row">
+                <label>API key env var (recomandat pe Pi)</label>
+                <input type="text" id="assistant-chatgpt-api-key-env" placeholder="SECRET_OPENAI_API_KEY" />
+              </div>
+              <div class="form-row">
+                <label>ChatGPT model</label>
+                <input type="text" id="assistant-chatgpt-model" placeholder="gpt-4o-mini" />
+              </div>
+              <div class="form-row">
+                <label>Speech-to-text model</label>
+                <input type="text" id="assistant-stt-openai-model" placeholder="gpt-4o-mini-transcribe" />
+              </div>
+              <div class="form-row">
+                <label>STT language (optional)</label>
+                <input type="text" id="assistant-stt-openai-language" placeholder="ro-RO" />
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-title">🎙 Voice</div>
+              <div class="form-row">
+                <label>Activation key</label>
+                <input type="text" id="assistant-activation-key" placeholder="ArrowUp" />
+              </div>
+              <div class="form-row">
+                <label>Recognition language</label>
+                <input type="text" id="assistant-recognition-language" placeholder="ro-RO" />
+              </div>
+              <div class="form-row">
+                <label>STT engine</label>
+                <select id="assistant-stt-engine">
+                  <option value="openai">openai (recommended)</option>
+                  <option value="auto">auto</option>
+                  <option value="browser">browser</option>
+                </select>
+              </div>
+              <div class="form-row-2">
+                <div>
+                  <label>Max recording (ms)</label>
+                  <input type="number" id="assistant-max-recording-ms" min="1000" max="180000" />
+                </div>
+                <div>
+                  <label>No speech timeout (ms)</label>
+                  <input type="number" id="assistant-no-speech-timeout-ms" min="500" max="60000" />
+                </div>
+              </div>
+              <div class="toggle-row">
+                <div>
+                  <div class="toggle-info">Fallback browser STT -> OpenAI STT</div>
+                  <div class="toggle-sub">If browser STT fails, automatically switch to OpenAI STT.</div>
+                </div>
+                <label><input id="assistant-stt-fallback-openai" type="checkbox" checked /></label>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="card">
+              <div class="card-title">💬 AI Behavior</div>
+              <div class="form-row">
+                <label>Prompt prefix</label>
+                <textarea id="assistant-prompt-prefix" rows="3" placeholder="Ex: Answer clearly and concisely, in Romanian."></textarea>
+              </div>
+              <div class="form-row">
+                <label>System prompt (optional)</label>
+                <textarea id="assistant-system-prompt" rows="3" placeholder="Optional instructions for AI assistant..."></textarea>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-title">🖥 Display</div>
+              <div class="form-row">
+                <label>Theme</label>
+                <select id="assistant-ui-theme">
+                  <option value="dark">dark</option>
+                  <option value="light">light</option>
+                  <option value="auto">auto</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <label>Font size</label>
+                <input type="text" id="assistant-ui-font-size" placeholder="22px" />
+              </div>
+              <div class="form-row">
+                <label>Loading text</label>
+                <input type="text" id="assistant-loading-text" placeholder="Thinking..." />
+              </div>
+              <div class="toggle-row">
+                <div>
+                  <div class="toggle-info">Show transcript</div>
+                  <div class="toggle-sub">Display on screen what was understood from the voice.</div>
+                </div>
+                <label><input id="assistant-show-transcript" type="checkbox" checked /></label>
+              </div>
+              <div class="toggle-row">
+                <div>
+                  <div class="toggle-info">Text-to-speech replies</div>
+                  <div class="toggle-sub">Activate/deactivate speaking the AI response aloud.</div>
+                </div>
+                <label><input id="assistant-tts-enabled" type="checkbox" checked /></label>
+              </div>
+              <div class="btn-row">
+                <button class="btn btn-primary" onclick="applyAssistant()">Save Assistant Settings</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <div class="toast" id="toast">
+      <span id="toast-icon" style="font-size:16px;">✓</span>
+      <span id="toast-msg">Change applied!</span>
+    </div>
+
+    <script src="js/script.js"></script>
+  </body>
+</html>

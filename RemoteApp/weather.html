@@ -1,113 +1,96 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; connect-src ws: wss: http: https:; img-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self';">
-<meta http-equiv="X-Content-Type-Options" content="nosniff">
-<meta http-equiv="X-Frame-Options" content="DENY">
-<meta http-equiv="Referrer-Policy" content="no-referrer">
-<title>IntelliGlass — Smart Mirror Control</title>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css">
-</head>
-<body>
-
-
-<nav class="topbar">
-  <div style="display:flex; align-items:center; gap:12px;">
-    <button class="hamburger" id="hamburger-btn" aria-label="Meniu" onclick="toggleSidebar()">
-      <span></span><span></span><span></span>
-    </button>
-    <div class="logo">
-      <div class="logo-icon">⿻</div>
-      IntelliGlass</span>
-    </div>
-  </div>
-
-  <div class="topbar-right">
-    <div class="status-dot" id="conn-dot" style="background:#f87171;"></div>
-    <span class="status-label" id="conn-label" data-i18n="conn_disconnected">Disconnected</span>
-  </div>
-</nav>
-
-<div class="layout">
-
-<!-- OVERLAY for mobile sidebar -->
-<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
-
-
-<aside class="sidebar" id="main-sidebar">
-  <div class="sidebar-section-label" data-i18n="side_mirror">Mirror</div>
-  <a class="sidebar-item" href="index.html">
-    <span class="si-icon">⬡</span> <span data-i18n="side_overview">Overview</span>
-  </a>
-  <div class="sidebar-section-label" data-i18n="side_customize">Personalization</div>
-  <a class="sidebar-item active" href="weather.html">
-    <span class="si-icon">☁</span> <span data-i18n="side_weather">Weather</span>
-  </a>
-  <a class="sidebar-item" href="news.html">
-    <span class="si-icon">◉</span> <span data-i18n="side_news">News</span>
-  </a>
-  <a class="sidebar-item" href="calendar.html">
-    <span class="si-icon">◫</span> <span data-i18n="side_calendar">Calendar</span>
-  </a>
-  <div class="sidebar-section-label" data-i18n="side_system">System</div>
-  <a class="sidebar-item" href="network.html">
-    <span class="si-icon">⊛</span> <span data-i18n="side_network">Network / Wi-Fi</span>
-  </a>
-  <a class="sidebar-item" href="settings.html">
-    <span class="si-icon">⚙</span> <span data-i18n="side_settings">Settings</span>
-  </a>
-  <div style="margin-top: auto; padding: 16px 8px 8px;">
-    <div style="font-size: 11px; color: var(--text-dim); line-height: 1.7;">
-      <span style="color:var(--linen); font-weight:600;">IntelliGlass</span><br>
-      <span id="sidebar-ip" style="color:rgba(141,134,201,0.4);">—</span>
-    </div>
-  </div>
-</aside>
-
-
-<main class="main">
-
-  <!-- ─── WEATHER ─── -->
-  <div id="sec-weather" class="section visible">
-    <div class="page-header">
-      <div class="page-title" data-i18n="page_weather">Weather Configuration</div>
-      <div class="page-sub" data-i18n="page_weather_sub">Set the location and display mode for the weather forecast on the mirror.</div>
-    </div>
-    <div class="accent-bar"></div>
-    <div class="grid-2">
-      <div class="card">
-        <div class="card-title">📍 <span data-i18n="card_location">Location & Settings</span></div>
-        <div class="form-row">
-          <label data-i18n="lbl_latitude">Latitude</label>
-          <input type="text" id="weather-latitude" value="47.6782" placeholder="ex: 47.6782, 46.7692...">
-        </div>
-        <div class="form-row">
-          <label data-i18n="lbl_longitude">Longitude</label>
-          <input type="text" id="weather-longitude" value="23.5806" placeholder="ex: 23.5806, 24.6789...">
-        </div>
-        <div class="form-row">
-          <label data-i18n="lbl_city">County (preset)</label>
-          <select id="weather-city-select" onchange="applyCityPreset(this.value)"></select>
-        </div>
-        <div class="btn-row">
-          <button class="btn btn-primary" onclick="applyWeather()" data-i18n="btn_apply_weather">Apply Weather Settings</button>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; connect-src ws: wss: http: https:; img-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self';"
+    />
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta http-equiv="X-Frame-Options" content="DENY" />
+    <meta http-equiv="Referrer-Policy" content="no-referrer" />
+    <title>IntelliGlass — Smart Mirror Control</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <nav class="topbar">
+      <div style="display:flex; align-items:center; gap:12px;">
+        <button class="hamburger" id="hamburger-btn" aria-label="Meniu" onclick="toggleSidebar()"><span></span><span></span><span></span></button>
+        <div class="logo">
+          <div class="logo-icon">⿻</div>
+          IntelliGlass
         </div>
       </div>
+
+      <div class="topbar-right">
+        <div class="status-dot" id="conn-dot" style="background:#f87171;"></div>
+        <span class="status-label" id="conn-label" data-i18n="conn_disconnected">Disconnected</span>
+      </div>
+    </nav>
+
+    <div class="layout">
+      <!-- OVERLAY for mobile sidebar -->
+      <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+      <aside class="sidebar" id="main-sidebar">
+        <div class="sidebar-section-label" data-i18n="side_mirror">Mirror</div>
+        <a class="sidebar-item" href="index.html"> <span class="si-icon">⬡</span> <span data-i18n="side_overview">Overview</span> </a>
+        <div class="sidebar-section-label" data-i18n="side_customize">Personalization</div>
+        <a class="sidebar-item active" href="weather.html"> <span class="si-icon">☁</span> <span data-i18n="side_weather">Weather</span> </a>
+        <a class="sidebar-item" href="news.html"> <span class="si-icon">◉</span> <span data-i18n="side_news">News</span> </a>
+        <a class="sidebar-item" href="calendar.html"> <span class="si-icon">◫</span> <span data-i18n="side_calendar">Calendar</span> </a>
+        <a class="sidebar-item" href="assistant.html"> <span class="si-icon">✦</span> <span>AI Assistant</span> </a>
+        <div class="sidebar-section-label" data-i18n="side_system">System</div>
+        <a class="sidebar-item" href="network.html"> <span class="si-icon">⊛</span> <span data-i18n="side_network">Network / Wi-Fi</span> </a>
+        <a class="sidebar-item" href="settings.html"> <span class="si-icon">⚙</span> <span data-i18n="side_settings">Settings</span> </a>
+        <div style="margin-top: auto; padding: 16px 8px 8px;">
+          <div style="font-size: 11px; color: var(--text-dim); line-height: 1.7;">
+            <span style="color:var(--linen); font-weight:600;">IntelliGlass</span><br />
+            <span id="sidebar-ip" style="color:rgba(141,134,201,0.4);">—</span>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main">
+        <!-- ─── WEATHER ─── -->
+        <div id="sec-weather" class="section visible">
+          <div class="page-header">
+            <div class="page-title" data-i18n="page_weather">Weather Configuration</div>
+            <div class="page-sub" data-i18n="page_weather_sub">Set the location and display mode for the weather forecast on the mirror.</div>
+          </div>
+          <div class="accent-bar"></div>
+          <div class="grid-2">
+            <div class="card">
+              <div class="card-title">📍 <span data-i18n="card_location">Location & Settings</span></div>
+              <div class="form-row">
+                <label data-i18n="lbl_latitude">Latitude</label>
+                <input type="text" id="weather-latitude" value="47.6782" placeholder="ex: 47.6782, 46.7692..." />
+              </div>
+              <div class="form-row">
+                <label data-i18n="lbl_longitude">Longitude</label>
+                <input type="text" id="weather-longitude" value="23.5806" placeholder="ex: 23.5806, 24.6789..." />
+              </div>
+              <div class="form-row">
+                <label data-i18n="lbl_city">County (preset)</label>
+                <select id="weather-city-select" onchange="applyCityPreset(this.value)"></select>
+              </div>
+              <div class="btn-row">
+                <button class="btn btn-primary" onclick="applyWeather()" data-i18n="btn_apply_weather">Apply Weather Settings</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
     </div>
-  </div>
 
-</main>
-</div>
+    <!-- TOAST -->
+    <div class="toast" id="toast">
+      <span id="toast-icon" style="font-size:16px;">✓</span>
+      <span id="toast-msg">Change applied!</span>
+    </div>
 
-<!-- TOAST -->
-<div class="toast" id="toast">
-  <span id="toast-icon" style="font-size:16px;">✓</span>
-  <span id="toast-msg">Change applied!</span>
-</div>
-
-<script src="js/script.js"></script>
-</body>
+    <script src="js/script.js"></script>
+  </body>
 </html>

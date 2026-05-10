@@ -506,7 +506,8 @@ async function updateConfig (payload) {
 		return {
 			ok: true,
 			reloaded: data && typeof data === "object" ? Boolean(data.reloaded) : false,
-			clients: data && typeof data === "object" && typeof data.clients === "number" ? data.clients : null
+			clients: data && typeof data === "object" && typeof data.clients === "number" ? data.clients : null,
+			updated: data && typeof data === "object" ? (data.updated || null) : null
 		};
 	} catch (e) {
 		wsLog(`[!] Error updating config: ${sanitize(e.message || "error")}`, "err");
@@ -524,6 +525,13 @@ function handleApplyResult (result) {
 		showToast(errMsg, true);
 		return false;
 	}
+	if (result.updated && typeof result.updated === "object") {
+		const hasChanges = Object.values(result.updated).some((value) => Boolean(value));
+		if (!hasChanges) {
+			showToast("No changes detected in config", true);
+			return true;
+		}
+	}
 	if (result.reloaded) {
 		const translationsMap = window.translations;
 		const lang = typeof window.currentLang === "string" ? window.currentLang : "ro";
@@ -534,7 +542,7 @@ function handleApplyResult (result) {
 		return true;
 	}
 	if (typeof result.clients === "number" && result.clients === 0) {
-		showToast("No clients connected", true);
+		showToast("Saved, but no mirror clients connected for auto-reload", true);
 		return true;
 	}
 	return true;
@@ -624,6 +632,19 @@ function getCalendarUrls (config) {
 		}
 	}
 	return urls;
+}
+
+/**
+ *
+ * @param config
+ */
+function getAIAssistantModuleConfig (config) {
+	if (!config || !Array.isArray(config.modules)) return null;
+	const moduleConfig = config.modules.find((mod) => mod && mod.module === "MMM-AIVoiceAssistant");
+	if (!moduleConfig || !moduleConfig.config || typeof moduleConfig.config !== "object") {
+		return null;
+	}
+	return moduleConfig.config;
 }
 
 /**
@@ -894,6 +915,77 @@ function applyConfigToUI (config) {
 		if (rssSecondaryTitle) rssSecondaryTitle.value = feeds[1] ? feeds[1].title : "";
 	}
 
+	const assistantConfig = getAIAssistantModuleConfig(config);
+	if (assistantConfig) {
+		const chatgptConfig = assistantConfig.chatgpt && typeof assistantConfig.chatgpt === "object"
+			? assistantConfig.chatgpt
+			: {};
+		const sttOpenAIConfig = assistantConfig.sttOpenAI && typeof assistantConfig.sttOpenAI === "object"
+			? assistantConfig.sttOpenAI
+			: {};
+		const uiConfig = assistantConfig.ui && typeof assistantConfig.ui === "object"
+			? assistantConfig.ui
+			: {};
+
+		const setValue = (id, value) => {
+			const el = document.getElementById(id);
+			if (!el) return;
+			el.value = value == null ? "" : String(value);
+		};
+		const setChecked = (id, value) => {
+			const el = document.getElementById(id);
+			if (!el) return;
+			el.checked = Boolean(value);
+		};
+
+		setValue("assistant-activation-key", assistantConfig.activationKey || "ArrowUp");
+		if (Array.isArray(assistantConfig.activationKeyStates)) {
+			setValue("assistant-activation-states", assistantConfig.activationKeyStates.join(","));
+		}
+		setValue("assistant-recognition-language", assistantConfig.recognitionLanguage || "en-US");
+		setValue("assistant-stt-engine", assistantConfig.sttEngine || "auto");
+		setValue("assistant-stt-silence-threshold", assistantConfig.sttSilenceThreshold);
+		setValue("assistant-trigger-cooldown-ms", assistantConfig.triggerCooldownMs);
+		setValue("assistant-max-recording-ms", assistantConfig.maxRecordingMs);
+		setValue("assistant-no-speech-timeout-ms", assistantConfig.noSpeechTimeoutMs);
+		setValue("assistant-speech-end-grace-ms", assistantConfig.speechEndGraceMs);
+		setValue("assistant-request-timeout-ms", assistantConfig.requestTimeoutMs);
+		setValue("assistant-response-max-length", assistantConfig.responseMaxLength);
+		setValue("assistant-prompt-prefix", assistantConfig.promptPrefix || "");
+		setValue("assistant-system-prompt", assistantConfig.systemPrompt || "");
+		setValue("assistant-loading-text", assistantConfig.loadingText || "");
+		setValue("assistant-placeholder", assistantConfig.placeholder || "");
+		setValue("assistant-width", assistantConfig.width || "");
+		setValue("assistant-min-height", assistantConfig.minHeight || "");
+		setValue("assistant-max-height", assistantConfig.maxHeight || "");
+		setChecked("assistant-show-transcript", assistantConfig.showTranscript !== false);
+		setChecked("assistant-tts-enabled", assistantConfig.ttsEnabled !== false);
+		setChecked("assistant-listen-mmm-keybindings", assistantConfig.listenToMMMKeyBindings !== false);
+		setChecked("assistant-enable-keyboard-fallback", assistantConfig.enableKeyboardFallback !== false);
+		setChecked("assistant-stt-fallback-openai", assistantConfig.sttFallbackToOpenAI !== false);
+		setChecked("assistant-microphone-permission-preflight", assistantConfig.microphonePermissionPreflight !== false);
+
+		setValue("assistant-ui-theme", uiConfig.theme || "dark");
+		setValue("assistant-ui-font-size", uiConfig.fontSize || "");
+		setValue("assistant-ui-line-height", uiConfig.lineHeight);
+		setValue("assistant-ui-border-radius", uiConfig.borderRadius || "");
+		setValue("assistant-ui-padding", uiConfig.padding || "");
+		setValue("assistant-ui-background-opacity", uiConfig.backgroundOpacity);
+
+		setValue("assistant-chatgpt-model", chatgptConfig.model || "gpt-4o-mini");
+		setValue("assistant-chatgpt-api-base", chatgptConfig.apiBase || "https://api.openai.com/v1");
+		const rawApiKeyEnv = typeof chatgptConfig.apiKeyEnv === "string" ? chatgptConfig.apiKeyEnv.trim() : "";
+		const envLooksLikeVar = (/^[A-Z_][A-Z0-9_]*$/).test(rawApiKeyEnv);
+		const envLooksLikeKey = (/^sk-\S{10,}$/).test(rawApiKeyEnv);
+		setValue("assistant-chatgpt-api-key", chatgptConfig.apiKey || (envLooksLikeKey ? rawApiKeyEnv : ""));
+		setValue("assistant-chatgpt-api-key-env", envLooksLikeVar ? rawApiKeyEnv : "SECRET_OPENAI_API_KEY");
+		setValue("assistant-chatgpt-temperature", chatgptConfig.temperature);
+		setValue("assistant-chatgpt-max-output-tokens", chatgptConfig.maxOutputTokens);
+		setValue("assistant-stt-openai-model", sttOpenAIConfig.model || "gpt-4o-mini-transcribe");
+		setValue("assistant-stt-openai-language", sttOpenAIConfig.language || "");
+		setValue("assistant-stt-openai-prompt", sttOpenAIConfig.prompt || "");
+	}
+
 	const langEl = document.getElementById("set-lang");
 	if (langEl && typeof config.language === "string") {
 		langEl.value = config.language;
@@ -1143,6 +1235,174 @@ async function applyLocale () {
 	const tf = (tfEl && tfEl.value === "12") ? "12" : "24";
 	const result = await updateConfig({ locale: { language: lang, timeFormat: parseInt(tf) } });
 	handleApplyResult(result);
+}
+
+/**
+ *
+ */
+async function applyAssistant () {
+	const getValue = (id) => {
+		const el = document.getElementById(id);
+		return el ? String(el.value || "").trim() : "";
+	};
+	const getChecked = (id) => {
+		const el = document.getElementById(id);
+		return el ? Boolean(el.checked) : null;
+	};
+	const parseIntField = (id, min, max) => {
+		const raw = getValue(id);
+		if (!raw) return null;
+		const parsed = Number(raw);
+		if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed < min || parsed > max) {
+			throw new Error(`${id} must be between ${min} and ${max}`);
+		}
+		return parsed;
+	};
+	const parseFloatField = (id, min, max) => {
+		const raw = getValue(id);
+		if (!raw) return null;
+		const parsed = Number(raw);
+		if (!Number.isFinite(parsed) || parsed < min || parsed > max) {
+			throw new Error(`${id} must be between ${min} and ${max}`);
+		}
+		return parsed;
+	};
+
+	try {
+		const assistantPayload = {};
+		const activationKey = getValue("assistant-activation-key");
+		if (activationKey) assistantPayload.activationKey = activationKey;
+
+		const activationStatesRaw = getValue("assistant-activation-states");
+		if (activationStatesRaw) {
+			const states = activationStatesRaw
+				.split(",")
+				.map((entry) => entry.trim())
+				.filter((entry) => entry.length > 0);
+			if (states.length > 0) {
+				assistantPayload.activationKeyStates = Array.from(new Set(states));
+			}
+		}
+
+		const recognitionLanguage = getValue("assistant-recognition-language");
+		if (recognitionLanguage) assistantPayload.recognitionLanguage = recognitionLanguage;
+		const sttEngine = getValue("assistant-stt-engine");
+		if (sttEngine) assistantPayload.sttEngine = sttEngine;
+		const promptPrefix = getValue("assistant-prompt-prefix");
+		if (promptPrefix || promptPrefix === "") assistantPayload.promptPrefix = promptPrefix;
+		const systemPrompt = getValue("assistant-system-prompt");
+		if (systemPrompt || systemPrompt === "") assistantPayload.systemPrompt = systemPrompt;
+		const loadingText = getValue("assistant-loading-text");
+		if (loadingText) assistantPayload.loadingText = loadingText;
+		const placeholder = getValue("assistant-placeholder");
+		if (placeholder) assistantPayload.placeholder = placeholder;
+		const width = getValue("assistant-width");
+		if (width) assistantPayload.width = width;
+		const minHeight = getValue("assistant-min-height");
+		if (minHeight) assistantPayload.minHeight = minHeight;
+		const maxHeight = getValue("assistant-max-height");
+		if (maxHeight) assistantPayload.maxHeight = maxHeight;
+
+		const triggerCooldownMs = parseIntField("assistant-trigger-cooldown-ms", 0, 120000);
+		if (triggerCooldownMs != null) assistantPayload.triggerCooldownMs = triggerCooldownMs;
+		const maxRecordingMs = parseIntField("assistant-max-recording-ms", 1000, 180000);
+		if (maxRecordingMs != null) assistantPayload.maxRecordingMs = maxRecordingMs;
+		const noSpeechTimeoutMs = parseIntField("assistant-no-speech-timeout-ms", 500, 60000);
+		if (noSpeechTimeoutMs != null) assistantPayload.noSpeechTimeoutMs = noSpeechTimeoutMs;
+		const speechEndGraceMs = parseIntField("assistant-speech-end-grace-ms", 100, 10000);
+		if (speechEndGraceMs != null) assistantPayload.speechEndGraceMs = speechEndGraceMs;
+		const requestTimeoutMs = parseIntField("assistant-request-timeout-ms", 1000, 180000);
+		if (requestTimeoutMs != null) assistantPayload.requestTimeoutMs = requestTimeoutMs;
+		const responseMaxLength = parseIntField("assistant-response-max-length", 200, 50000);
+		if (responseMaxLength != null) assistantPayload.responseMaxLength = responseMaxLength;
+		const sttSilenceThreshold = parseFloatField("assistant-stt-silence-threshold", 0.002, 0.2);
+		if (sttSilenceThreshold != null) assistantPayload.sttSilenceThreshold = sttSilenceThreshold;
+
+		const showTranscript = getChecked("assistant-show-transcript");
+		if (showTranscript != null) assistantPayload.showTranscript = showTranscript;
+		const ttsEnabled = getChecked("assistant-tts-enabled");
+		if (ttsEnabled != null) assistantPayload.ttsEnabled = ttsEnabled;
+		const listenToMMMKeyBindings = getChecked("assistant-listen-mmm-keybindings");
+		if (listenToMMMKeyBindings != null) assistantPayload.listenToMMMKeyBindings = listenToMMMKeyBindings;
+		const enableKeyboardFallback = getChecked("assistant-enable-keyboard-fallback");
+		if (enableKeyboardFallback != null) assistantPayload.enableKeyboardFallback = enableKeyboardFallback;
+		const sttFallbackToOpenAI = getChecked("assistant-stt-fallback-openai");
+		if (sttFallbackToOpenAI != null) assistantPayload.sttFallbackToOpenAI = sttFallbackToOpenAI;
+		const microphonePermissionPreflight = getChecked("assistant-microphone-permission-preflight");
+		if (microphonePermissionPreflight != null) assistantPayload.microphonePermissionPreflight = microphonePermissionPreflight;
+
+		const uiPayload = {};
+		const uiTheme = getValue("assistant-ui-theme");
+		if (uiTheme) uiPayload.theme = uiTheme;
+		const uiFontSize = getValue("assistant-ui-font-size");
+		if (uiFontSize) uiPayload.fontSize = uiFontSize;
+		const uiLineHeight = parseFloatField("assistant-ui-line-height", 1, 3);
+		if (uiLineHeight != null) uiPayload.lineHeight = uiLineHeight;
+		const uiBorderRadius = getValue("assistant-ui-border-radius");
+		if (uiBorderRadius) uiPayload.borderRadius = uiBorderRadius;
+		const uiPadding = getValue("assistant-ui-padding");
+		if (uiPadding) uiPayload.padding = uiPadding;
+		const uiBackgroundOpacity = parseFloatField("assistant-ui-background-opacity", 0, 1);
+		if (uiBackgroundOpacity != null) uiPayload.backgroundOpacity = uiBackgroundOpacity;
+		if (Object.keys(uiPayload).length > 0) {
+			assistantPayload.ui = uiPayload;
+		}
+
+		const chatGptPayload = {};
+		const model = getValue("assistant-chatgpt-model");
+		if (model) chatGptPayload.model = model;
+		const apiBase = getValue("assistant-chatgpt-api-base");
+		if (apiBase) chatGptPayload.apiBase = apiBase;
+		const apiKey = getValue("assistant-chatgpt-api-key");
+		if (apiKey) chatGptPayload.apiKey = apiKey;
+		const apiKeyEnv = getValue("assistant-chatgpt-api-key-env");
+		if (apiKeyEnv) {
+			if ((/^sk-\S{10,}$/).test(apiKeyEnv) && !apiKey) {
+				chatGptPayload.apiKey = apiKeyEnv;
+				chatGptPayload.apiKeyEnv = "SECRET_OPENAI_API_KEY";
+			} else {
+				chatGptPayload.apiKeyEnv = apiKeyEnv;
+			}
+		}
+		const temperature = parseFloatField("assistant-chatgpt-temperature", 0, 2);
+		if (temperature != null) chatGptPayload.temperature = temperature;
+		const maxOutputTokens = parseIntField("assistant-chatgpt-max-output-tokens", 64, 8192);
+		if (maxOutputTokens != null) chatGptPayload.maxOutputTokens = maxOutputTokens;
+		if (Object.keys(chatGptPayload).length > 0) {
+			assistantPayload.chatgpt = chatGptPayload;
+		}
+
+		const sttOpenAIPayload = {};
+		const sttModel = getValue("assistant-stt-openai-model");
+		if (sttModel) sttOpenAIPayload.model = sttModel;
+		const sttLanguage = getValue("assistant-stt-openai-language");
+		if (sttLanguage || sttLanguage === "") sttOpenAIPayload.language = sttLanguage;
+		const sttPrompt = getValue("assistant-stt-openai-prompt");
+		if (sttPrompt || sttPrompt === "") sttOpenAIPayload.prompt = sttPrompt;
+		if (Object.keys(sttOpenAIPayload).length > 0) {
+			assistantPayload.sttOpenAI = sttOpenAIPayload;
+		}
+
+		if (Object.keys(assistantPayload).length === 0) {
+			showToast("No assistant settings to save", true);
+			return;
+		}
+
+		const result = await updateConfig({ assistant: assistantPayload });
+		if (handleApplyResult(result)) {
+			const changed = !result || !result.updated || typeof result.updated !== "object"
+				? true
+				: Object.values(result.updated).some((value) => Boolean(value));
+			if (changed && (!result.reloaded)) {
+				await sendCommand({ type: "reload" });
+			}
+			fetchConfigSnapshot().then(function (cfg) {
+				applyConfigToUI(cfg);
+			});
+		}
+	} catch (error) {
+		showToast(error.message || "Invalid assistant configuration", true);
+	}
 }
 
 /* TOAST */
