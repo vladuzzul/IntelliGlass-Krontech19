@@ -1,249 +1,226 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; connect-src ws: wss: http: https:; img-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self';">
-<meta http-equiv="X-Content-Type-Options" content="nosniff">
-<meta http-equiv="X-Frame-Options" content="DENY">
-<meta http-equiv="Referrer-Policy" content="no-referrer">
-<title>IntelliGlass — Smart Mirror Control</title>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css">
-</head>
-<body>
-
-
-<nav class="topbar">
-  <div style="display:flex; align-items:center; gap:12px;">
-    <button class="hamburger" id="hamburger-btn" aria-label="Meniu" onclick="toggleSidebar()">
-      <span></span><span></span><span></span>
-    </button>
-    <div class="logo">
-      <div class="logo-icon">⿻</div>
-      IntelliGlass</span>
-    </div>
-  </div>
-
-  <div class="topbar-right">
-    <div class="status-dot" id="conn-dot" style="background:#f87171;"></div>
-    <span class="status-label" id="conn-label" data-i18n="conn_disconnected">Deconectat</span>
-  </div>
-</nav>
-
-<div class="layout">
-
-<!-- OVERLAY for mobile sidebar -->
-<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
-
-
-<aside class="sidebar" id="main-sidebar">
-  <div class="sidebar-section-label" data-i18n="side_mirror">Oglindiță</div>
-  <a class="sidebar-item active" href="index.html">
-    <span class="si-icon">⬡</span> <span data-i18n="side_overview">Prezentare</span>
-  </a>
-  <div class="sidebar-section-label" data-i18n="side_customize">Personalizare</div>
-  <a class="sidebar-item" href="weather.html">
-    <span class="si-icon">☁</span> <span data-i18n="side_weather">Vreme</span>
-  </a>
-  <a class="sidebar-item" href="news.html">
-    <span class="si-icon">◉</span> <span data-i18n="side_news">Știri</span>
-  </a>
-  <a class="sidebar-item" href="calendar.html">
-    <span class="si-icon">◫</span> <span data-i18n="side_calendar">Calendar</span>
-  </a>
-
-  <div class="sidebar-section-label" data-i18n="side_system">Sistem</div>
-  <a class="sidebar-item" href="network.html">
-    <span class="si-icon">⊛</span> <span data-i18n="side_network">Rețea / Wi-Fi</span>
-  </a>
-  <a class="sidebar-item" href="settings.html">
-    <span class="si-icon">⚙</span> <span data-i18n="side_settings">Setări</span>
-  </a>
-
-  <div style="margin-top: auto; padding: 16px 8px 8px;">
-    <div style="font-size: 11px; color: var(--text-dim); line-height: 1.7;">
-      <span style="color:var(--linen); font-weight:600;">IntelliGlass</span><br>
-      <span id="sidebar-ip" style="color:rgba(141,134,201,0.4);">—</span>
-    </div>
-  </div>
-</aside>
-
-
-<main class="main">
-
-  <!-- ─── DASHBOARD ─── -->
-  <div id="sec-dashboard" class="section visible">
-    <div class="page-header">
-      <div class="page-title" id="dash-greeting">Welcome 👋</div>
-      <div class="page-sub" data-i18n="dash_sub">Oglinda ta smart este monitorizată în timp real.</div>
-    </div>
-    <div class="accent-bar"></div>
-
-    <div class="grid-4" style="margin-bottom: 20px;">
-      <div class="stat-card">
-        <div class="stat-label" data-i18n="stat_status_lbl">Status RPi</div>
-        <div class="stat-value" id="stat-status" style="font-size:18px; color:#f87171;">Offline</div>
-        <div class="stat-sub" data-i18n="sub_rpi4">Raspberry Pi 4</div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; connect-src ws: wss: http: https:; img-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self';"
+    />
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta http-equiv="X-Frame-Options" content="DENY" />
+    <meta http-equiv="Referrer-Policy" content="no-referrer" />
+    <title>IntelliGlass — Smart Mirror Control</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <nav class="topbar">
+      <div style="display:flex; align-items:center; gap:12px;">
+        <button class="hamburger" id="hamburger-btn" aria-label="Meniu" onclick="toggleSidebar()"><span></span><span></span><span></span></button>
+        <div class="logo">
+          <div class="logo-icon">⿻</div>
+          IntelliGlass
+        </div>
       </div>
-      <div class="stat-card">
-        <div class="stat-label" data-i18n="stat_temp_lbl">Temperatură</div>
-        <div class="stat-value" id="stat-temp">—</div>
-        <div class="stat-sub" id="stat-city">Brașov, RO</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label" data-i18n="stat_widgets_lbl">Widget-uri Active</div>
-        <div class="stat-value" id="stat-widgets">6</div>
-        <div class="stat-sub" data-i18n="stat_on_mirror">Pe oglindă</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label" data-i18n="stat_bright_lbl">Luminozitate</div>
-        <div class="stat-value" id="bright-stat">75%</div>
-        <div class="stat-sub" data-i18n="stat_adjustable">Reglabilă</div>
-      </div>
-    </div>
 
-    <div class="grid-2">
-      <!-- Mirror Preview -->
-      <div class="card">
-        <div class="card-title">◈ <span data-i18n="card_preview">Previzualizare Oglindă</span></div>
-        <div class="mirror-preview-wrap">
-          <div class="mirror-frame">
-            <div class="mirror-top">
+      <div class="topbar-right">
+        <div class="status-dot" id="conn-dot" style="background:#f87171;"></div>
+        <span class="status-label" id="conn-label" data-i18n="conn_disconnected">Deconectat</span>
+      </div>
+    </nav>
+
+    <div class="layout">
+      <!-- OVERLAY for mobile sidebar -->
+      <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+      <aside class="sidebar" id="main-sidebar">
+        <div class="sidebar-section-label" data-i18n="side_mirror">Oglindiță</div>
+        <a class="sidebar-item active" href="index.html"> <span class="si-icon">⬡</span> <span data-i18n="side_overview">Prezentare</span> </a>
+        <div class="sidebar-section-label" data-i18n="side_customize">Personalizare</div>
+        <a class="sidebar-item" href="weather.html"> <span class="si-icon">☁</span> <span data-i18n="side_weather">Vreme</span> </a>
+        <a class="sidebar-item" href="news.html"> <span class="si-icon">◉</span> <span data-i18n="side_news">Știri</span> </a>
+        <a class="sidebar-item" href="calendar.html"> <span class="si-icon">◫</span> <span data-i18n="side_calendar">Calendar</span> </a>
+        <a class="sidebar-item" href="assistant.html"> <span class="si-icon">✦</span> <span>AI Assistant</span> </a>
+
+        <div class="sidebar-section-label" data-i18n="side_system">Sistem</div>
+        <a class="sidebar-item" href="network.html"> <span class="si-icon">⊛</span> <span data-i18n="side_network">Rețea / Wi-Fi</span> </a>
+        <a class="sidebar-item" href="settings.html"> <span class="si-icon">⚙</span> <span data-i18n="side_settings">Setări</span> </a>
+
+        <div style="margin-top: auto; padding: 16px 8px 8px;">
+          <div style="font-size: 11px; color: var(--text-dim); line-height: 1.7;">
+            <span style="color:var(--linen); font-weight:600;">IntelliGlass</span><br />
+            <span id="sidebar-ip" style="color:rgba(141,134,201,0.4);">—</span>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main">
+        <!-- ─── DASHBOARD ─── -->
+        <div id="sec-dashboard" class="section visible">
+          <div class="page-header">
+            <div class="page-title" id="dash-greeting">Welcome 👋</div>
+            <div class="page-sub" data-i18n="dash_sub">Oglinda ta smart este monitorizată în timp real.</div>
+          </div>
+          <div class="accent-bar"></div>
+
+          <div class="grid-4" style="margin-bottom: 20px;">
+            <div class="stat-card">
+              <div class="stat-label" data-i18n="stat_status_lbl">Status RPi</div>
+              <div class="stat-value" id="stat-status" style="font-size:18px; color:#f87171;">Offline</div>
+              <div class="stat-sub" data-i18n="sub_rpi4">Raspberry Pi 4</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label" data-i18n="stat_temp_lbl">Temperatură</div>
+              <div class="stat-value" id="stat-temp">—</div>
+              <div class="stat-sub" id="stat-city">Brașov, RO</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label" data-i18n="stat_widgets_lbl">Widget-uri Active</div>
+              <div class="stat-value" id="stat-widgets">6</div>
+              <div class="stat-sub" data-i18n="stat_on_mirror">Pe oglindă</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label" data-i18n="stat_bright_lbl">Luminozitate</div>
+              <div class="stat-value" id="bright-stat">75%</div>
+              <div class="stat-sub" data-i18n="stat_adjustable">Reglabilă</div>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <!-- Mirror Preview -->
+            <div class="card">
+              <div class="card-title">◈ <span data-i18n="card_preview">Previzualizare Oglindă</span></div>
+              <div class="mirror-preview-wrap">
+                <div class="mirror-frame">
+                  <div class="mirror-top">
+                    <div>
+                      <div class="mirror-date" id="mirror-date-label">Vineri, 24 aprilie 2026</div>
+                      <div class="mirror-time-big" id="mirror-clock">00:00</div>
+                    </div>
+                    <div class="mirror-cal">
+                      <div style="color:rgba(247,236,225,0.6); font-size:9px; margin-bottom:4px;">CALENDAR</div>
+                      <div id="mirror-cal-1">↪ Mers la sala &nbsp;&nbsp; 08:00</div>
+                      <div id="mirror-cal-2">↪ Meeting Echipa &nbsp;&nbsp; 09:45</div>
+                      <div id="mirror-cal-3">↪ Programare Tuns &nbsp;&nbsp; 19:30</div>
+                    </div>
+                  </div>
+                  <div class="mirror-center">
+                    <div class="mirror-greeting" id="mirror-greeting-text">Great to see you!</div>
+                  </div>
+                  <div class="mirror-bottom">
+                    <div class="mirror-weather">
+                      <div class="mirror-weather-temp" id="mirror-temp-display">—</div>
+                      <div id="mirror-weather-sub" data-i18n="mirror_loading" data-i18n="mirror_loading">Se încarcă...</div>
+                      <div style="margin-top:4px; opacity:0.7;" id="mirror-forecast-sub"></div>
+                    </div>
+                    <div style="font-size:9px; color:rgba(247,236,225,0.2); text-align:right;">INTELLIGLASS<br /><span style="color:rgba(141,134,201,0.4);">◈ Smart Mirror</span></div>
+                  </div>
+                  <div class="mirror-ticker">
+                    <span class="ticker-inner" id="mirror-ticker">
+                      📰 Conectează oglinda pentru știri live &nbsp;&nbsp;&nbsp;⬥&nbsp;&nbsp;&nbsp; 🌤 IntelliGlass — Smart Mirror Controller &nbsp;&nbsp;&nbsp;⬥&nbsp;&nbsp;&nbsp; ◈ Kronsoft 2026 &nbsp;&nbsp;&nbsp;⬥&nbsp;&nbsp;&nbsp;
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Quick Controls -->
+            <div class="card">
+              <div class="card-title">⚡ <span data-i18n="card_quickcontrol">Control Rapid</span></div>
+
+              <div class="form-row">
+                <label data-i18n-prefix="lbl_brightness">Luminozitate Ecran — <span id="bright-label">75%</span></label>
+                <input type="range" min="0" max="100" value="75" id="bright-slider" oninput="setBrightness(this.value)" />
+              </div>
+
+              <div class="divider"></div>
+
+              <div class="toggle-row">
+                <div>
+                  <div class="toggle-info" data-i18n="tog_nightmode">Modul Noapte</div>
+                  <div class="toggle-sub" data-i18n="tog_nightmode_sub">Reduce luminozitatea după 22:00</div>
+                </div>
+                <div class="toggle-switch on" id="tog-night" onclick="toggleSwitch(this,'night_mode')">
+                  <div class="toggle-thumb"></div>
+                </div>
+              </div>
+              <div class="toggle-row">
+                <div>
+                  <div class="toggle-info" data-i18n="tog_clock">Afișare Ceas</div>
+                  <div class="toggle-sub" data-i18n="tog_clock_sub">Ora digitală pe oglindă</div>
+                </div>
+                <div class="toggle-switch on" id="tog-clock" onclick="toggleSwitch(this,'show_clock')">
+                  <div class="toggle-thumb"></div>
+                </div>
+              </div>
+              <div class="toggle-row">
+                <div>
+                  <div class="toggle-info" data-i18n="tog_ticker">Ticker Știri</div>
+                  <div class="toggle-sub" data-i18n="tog_ticker_sub">Bandă derulantă în josul oglinzii</div>
+                </div>
+                <div class="toggle-switch on" id="tog-ticker" onclick="toggleSwitch(this,'show_ticker')">
+                  <div class="toggle-thumb"></div>
+                </div>
+              </div>
+              <div class="toggle-row">
+                <div>
+                  <div class="toggle-info" data-i18n="tog_weather">Afișare Vreme</div>
+                  <div class="toggle-sub" data-i18n="tog_weather_sub">Prognoză meteo pe oglindă</div>
+                </div>
+                <div class="toggle-switch on" id="tog-weather" onclick="toggleSwitch(this,'show_weather')">
+                  <div class="toggle-thumb"></div>
+                </div>
+              </div>
+              <div class="toggle-row">
+                <div>
+                  <div class="toggle-info" data-i18n="tog_calendar">Afișare Calendar</div>
+                  <div class="toggle-sub" data-i18n="tog_calendar_sub">Evenimente Google Calendar</div>
+                </div>
+                <div class="toggle-switch on" id="tog-cal" onclick="toggleSwitch(this,'show_calendar')">
+                  <div class="toggle-thumb"></div>
+                </div>
+              </div>
+
+              <div class="btn-row">
+                <button class="btn btn-primary" onclick="runCommand({type:'apply_all'}, (translations[currentLang]||translations.ro).toast_applied)" data-i18n="btn_apply_mirror">Aplică pe Oglindă</button>
+                <button class="btn btn-ghost" onclick="runCommand({type:'reload'}, (translations[currentLang]||translations.ro).toast_reload)" data-i18n="btn_reload">Reîncarcă</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- WebSocket Connection Card -->
+          <div class="card">
+            <div class="card-title">🔌 <span data-i18n="card_ws">Conexiune WebSocket cu Raspberry Pi</span></div>
+            <div class="form-row-2">
               <div>
-                <div class="mirror-date" id="mirror-date-label">Vineri, 24 aprilie 2026</div>
-                <div class="mirror-time-big" id="mirror-clock">00:00</div>
+                <label data-i18n="lbl_ip">IP Raspberry Pi</label>
+                <input type="text" id="ws-ip" value="192.168.1.104" placeholder="ex: 192.168.1.104" />
               </div>
-              <div class="mirror-cal">
-                <div style="color:rgba(247,236,225,0.6); font-size:9px; margin-bottom:4px;">CALENDAR</div>
-                <div id="mirror-cal-1">↪ Mers la sala &nbsp;&nbsp; 08:00</div>
-                <div id="mirror-cal-2">↪ Meeting Echipa &nbsp;&nbsp; 09:45</div>
-                <div id="mirror-cal-3">↪ Programare Tuns &nbsp;&nbsp; 19:30</div>
+              <div>
+                <label data-i18n="lbl_port">Port WebSocket</label>
+                <input type="number" id="ws-port" value="8080" min="1" max="65535" />
               </div>
             </div>
-            <div class="mirror-center">
-              <div class="mirror-greeting" id="mirror-greeting-text">Great to see you!</div>
+            <div class="btn-row" style="margin-top:4px; margin-bottom:14px;">
+              <button class="btn btn-primary" onclick="connectWS()" data-i18n="btn_connect">Conectează</button>
+              <button class="btn btn-ghost" onclick="disconnectWS()" data-i18n="btn_disconnect">Deconectează</button>
             </div>
-            <div class="mirror-bottom">
-              <div class="mirror-weather">
-                <div class="mirror-weather-temp" id="mirror-temp-display">—</div>
-                <div id="mirror-weather-sub" data-i18n="mirror_loading" data-i18n="mirror_loading">Se încarcă...</div>
-                <div style="margin-top:4px; opacity:0.7;" id="mirror-forecast-sub"></div>
-              </div>
-              <div style="font-size:9px; color:rgba(247,236,225,0.2); text-align:right;">
-                INTELLIGLASS<br><span style="color:rgba(141,134,201,0.4);">◈ Smart Mirror</span>
-              </div>
-            </div>
-            <div class="mirror-ticker">
-              <span class="ticker-inner" id="mirror-ticker">
-                📰 Conectează oglinda pentru știri live &nbsp;&nbsp;&nbsp;⬥&nbsp;&nbsp;&nbsp; 🌤 IntelliGlass — Smart Mirror Controller &nbsp;&nbsp;&nbsp;⬥&nbsp;&nbsp;&nbsp; ◈ Kronsoft 2026 &nbsp;&nbsp;&nbsp;⬥&nbsp;&nbsp;&nbsp;
-              </span>
+            <div class="ws-log" id="ws-log">
+              <span class="log-info">[IntelliGlass] <span data-i18n="ws_hint">Introdu IP-ul Raspberry Pi și apasă Conectează.</span></span
+              ><br />
             </div>
           </div>
         </div>
-      </div>
-
-      <!-- Quick Controls -->
-      <div class="card">
-        <div class="card-title">⚡ <span data-i18n="card_quickcontrol">Control Rapid</span></div>
-
-        <div class="form-row">
-          <label data-i18n-prefix="lbl_brightness">Luminozitate Ecran — <span id="bright-label">75%</span></label>
-          <input type="range" min="0" max="100" value="75" id="bright-slider"
-            oninput="setBrightness(this.value)">
-        </div>
-
-        <div class="divider"></div>
-
-        <div class="toggle-row">
-          <div>
-            <div class="toggle-info" data-i18n="tog_nightmode">Modul Noapte</div>
-            <div class="toggle-sub" data-i18n="tog_nightmode_sub">Reduce luminozitatea după 22:00</div>
-          </div>
-          <div class="toggle-switch on" id="tog-night" onclick="toggleSwitch(this,'night_mode')">
-            <div class="toggle-thumb"></div>
-          </div>
-        </div>
-        <div class="toggle-row">
-          <div>
-            <div class="toggle-info" data-i18n="tog_clock">Afișare Ceas</div>
-            <div class="toggle-sub" data-i18n="tog_clock_sub">Ora digitală pe oglindă</div>
-          </div>
-          <div class="toggle-switch on" id="tog-clock" onclick="toggleSwitch(this,'show_clock')">
-            <div class="toggle-thumb"></div>
-          </div>
-        </div>
-        <div class="toggle-row">
-          <div>
-            <div class="toggle-info" data-i18n="tog_ticker">Ticker Știri</div>
-            <div class="toggle-sub" data-i18n="tog_ticker_sub">Bandă derulantă în josul oglinzii</div>
-          </div>
-          <div class="toggle-switch on" id="tog-ticker" onclick="toggleSwitch(this,'show_ticker')">
-            <div class="toggle-thumb"></div>
-          </div>
-        </div>
-        <div class="toggle-row">
-          <div>
-            <div class="toggle-info" data-i18n="tog_weather">Afișare Vreme</div>
-            <div class="toggle-sub" data-i18n="tog_weather_sub">Prognoză meteo pe oglindă</div>
-          </div>
-          <div class="toggle-switch on" id="tog-weather" onclick="toggleSwitch(this,'show_weather')">
-            <div class="toggle-thumb"></div>
-          </div>
-        </div>
-        <div class="toggle-row">
-          <div>
-            <div class="toggle-info" data-i18n="tog_calendar">Afișare Calendar</div>
-            <div class="toggle-sub" data-i18n="tog_calendar_sub">Evenimente Google Calendar</div>
-          </div>
-          <div class="toggle-switch on" id="tog-cal" onclick="toggleSwitch(this,'show_calendar')">
-            <div class="toggle-thumb"></div>
-          </div>
-        </div>
-
-        <div class="btn-row">
-          <button class="btn btn-primary" onclick="runCommand({type:'apply_all'}, (translations[currentLang]||translations.ro).toast_applied)" data-i18n="btn_apply_mirror">
-            Aplică pe Oglindă
-          </button>
-          <button class="btn btn-ghost" onclick="runCommand({type:'reload'}, (translations[currentLang]||translations.ro).toast_reload)" data-i18n="btn_reload">
-            Reîncarcă
-          </button>
-        </div>
-      </div>
+      </main>
     </div>
 
-    <!-- WebSocket Connection Card -->
-    <div class="card">
-      <div class="card-title">🔌 <span data-i18n="card_ws">Conexiune WebSocket cu Raspberry Pi</span></div>
-      <div class="form-row-2">
-        <div>
-          <label data-i18n="lbl_ip">IP Raspberry Pi</label>
-          <input type="text" id="ws-ip" value="192.168.1.104" placeholder="ex: 192.168.1.104">
-        </div>
-        <div>
-          <label data-i18n="lbl_port">Port WebSocket</label>
-          <input type="number" id="ws-port" value="8080" min="1" max="65535">
-        </div>
-      </div>
-      <div class="btn-row" style="margin-top:4px; margin-bottom:14px;">
-        <button class="btn btn-primary" onclick="connectWS()" data-i18n="btn_connect">Conectează</button>
-        <button class="btn btn-ghost" onclick="disconnectWS()" data-i18n="btn_disconnect">Deconectează</button>
-      </div>
-      <div class="ws-log" id="ws-log">
-        <span class="log-info">[IntelliGlass] <span data-i18n="ws_hint">Introdu IP-ul Raspberry Pi și apasă Conectează.</span></span><br>
-      </div>
+    <!-- TOAST -->
+    <div class="toast" id="toast">
+      <span id="toast-icon" style="font-size:16px;">✓</span>
+      <span id="toast-msg">Modificare aplicată!</span>
     </div>
-  </div>
 
-</main>
-</div>
-
-<!-- TOAST -->
-<div class="toast" id="toast">
-  <span id="toast-icon" style="font-size:16px;">✓</span>
-  <span id="toast-msg">Modificare aplicată!</span>
-</div>
-
-<script src="js/script.js"></script>
-</body>
+    <script src="js/script.js"></script>
+  </body>
 </html>

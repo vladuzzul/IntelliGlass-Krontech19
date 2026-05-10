@@ -2,6 +2,7 @@ const fs = require("node:fs");
 const http = require("node:http");
 const https = require("node:https");
 const path = require("node:path");
+const vm = require("node:vm");
 const express = require("express");
 const helmet = require("helmet");
 const socketio = require("socket.io");
@@ -14,6 +15,10 @@ const vendor = require("./vendor");
 
 const { getHtml, getVersion, getEnvVars, cors, getConfigFilePath } = require("#server_functions");
 
+/**
+ *
+ * @param basePath
+ */
 function normalizeBasePath (basePath) {
 	if (typeof basePath !== "string" || basePath.trim() === "") return "/";
 	const trimmed = basePath.trim();
@@ -21,22 +26,42 @@ function normalizeBasePath (basePath) {
 	return withLeading.endsWith("/") ? withLeading : `${withLeading}/`;
 }
 
+/**
+ *
+ * @param value
+ */
 function escapeForDoubleQuote (value) {
-	return String(value).replace(/\\/g, "\\\\").replace(/\"/g, "\\\"");
+	return String(value).replace(/\\/g, "\\\\").replace(/"/g, "\\\"");
 }
 
+/**
+ *
+ * @param source
+ * @param key
+ * @param value
+ */
 function replaceTopLevelString (source, key, value) {
 	const regex = new RegExp(`(\\b${key}\\s*:\\s*)(["'])([^"']*)(\\2)`);
 	if (!regex.test(source)) return source;
 	return source.replace(regex, `$1"${escapeForDoubleQuote(value)}"`);
 }
 
+/**
+ *
+ * @param source
+ * @param key
+ * @param value
+ */
 function replaceTopLevelNumber (source, key, value) {
 	const regex = new RegExp(`(\\b${key}\\s*:\\s*)(-?\\d+(?:\\.\\d+)?)`);
 	if (!regex.test(source)) return source;
 	return source.replace(regex, `$1${value}`);
 }
 
+/**
+ *
+ * @param source
+ */
 function getModulesArrayRanges (source) {
 	const modulesMatch = source.match(/\bmodules\s*:/);
 	if (!modulesMatch) return [];
@@ -100,17 +125,32 @@ function getModulesArrayRanges (source) {
 	return ranges;
 }
 
+/**
+ *
+ * @param block
+ */
 function getModuleName (block) {
-	const match = block.match(/module\s*:\s*["']([^"']+)["']/);
-	return match ? match[1] : null;
+	const match = block.match(/(?:^|[\s,{])["']?module["']?\s*:\s*(["'])([^"']+)\1/);
+	return match ? match[2] : null;
 }
 
+/**
+ *
+ * @param block
+ * @param key
+ * @param value
+ */
 function replaceNumberField (block, key, value) {
 	const regex = new RegExp(`(${key}\\s*:\\s*)(-?\\d+(?:\\.\\d+)?)`);
 	if (!regex.test(block)) return block;
 	return block.replace(regex, `$1${value}`);
 }
 
+/**
+ *
+ * @param source
+ * @param openIndex
+ */
 function findMatchingBracket (source, openIndex) {
 	if (openIndex < 0 || openIndex >= source.length || source[openIndex] !== "[") return -1;
 	let bracketDepth = 0;
@@ -148,6 +188,11 @@ function findMatchingBracket (source, openIndex) {
 	return -1;
 }
 
+/**
+ *
+ * @param block
+ * @param value
+ */
 function replaceCalendarUrl (block, value) {
 	const calendarsMatch = block.match(/(\r?\n[ \t]*)calendars\s*:\s*\[/);
 	if (!calendarsMatch || typeof calendarsMatch.index !== "number") return block;
@@ -183,6 +228,12 @@ function replaceCalendarUrl (block, value) {
 	return block.slice(0, arrayStart) + newArray + block.slice(arrayEnd + 1);
 }
 
+/**
+ *
+ * @param feeds
+ * @param indent
+ * @param eol
+ */
 function buildFeedsBlock (feeds, indent, eol) {
 	const line = eol || "\n";
 	if (!Array.isArray(feeds) || feeds.length === 0) {
@@ -205,6 +256,11 @@ function buildFeedsBlock (feeds, indent, eol) {
 	return `${indent}feeds: [${line}${entries}${line}${indent}]`;
 }
 
+/**
+ *
+ * @param block
+ * @param feeds
+ */
 function replaceFeedsBlock (block, feeds) {
 	const match = block.match(/(\r?\n[ \t]*)feeds\s*:\s*\[[\s\S]*?\]/);
 	if (!match) return block;
@@ -214,6 +270,11 @@ function replaceFeedsBlock (block, feeds) {
 	return block.replace(match[0], `${eol}${feedsBlock}`);
 }
 
+/**
+ *
+ * @param source
+ * @param openIndex
+ */
 function findMatchingBrace (source, openIndex) {
 	if (openIndex < 0 || openIndex >= source.length || source[openIndex] !== "{") return -1;
 	let braceDepth = 0;
@@ -251,6 +312,10 @@ function findMatchingBrace (source, openIndex) {
 	return -1;
 }
 
+/**
+ *
+ * @param rawCompliments
+ */
 function normalizeComplimentsPayload (rawCompliments) {
 	if (!rawCompliments || typeof rawCompliments !== "object") return null;
 
@@ -261,7 +326,7 @@ function normalizeComplimentsPayload (rawCompliments) {
 	for (const group of groups) {
 		const entries = Array.isArray(rawCompliments[group]) ? rawCompliments[group] : [];
 		const cleaned = entries
-			.map((entry) => entry == null ? "" : String(entry).trim())
+			.map((entry) => (entry == null ? "" : String(entry).trim()))
 			.filter((entry) => entry.length > 0)
 			.slice(0, 100);
 		normalized[group] = cleaned;
@@ -270,9 +335,9 @@ function normalizeComplimentsPayload (rawCompliments) {
 
 	const rawIntervalSeconds = Number(rawCompliments.updateIntervalSeconds);
 	const hasValidInterval = Number.isFinite(rawIntervalSeconds)
-		&& Number.isInteger(rawIntervalSeconds)
-		&& rawIntervalSeconds >= 1
-		&& rawIntervalSeconds <= 86400;
+	  && Number.isInteger(rawIntervalSeconds)
+	  && rawIntervalSeconds >= 1
+	  && rawIntervalSeconds <= 86400;
 
 	if (!hasValues && !hasValidInterval) return null;
 
@@ -282,6 +347,12 @@ function normalizeComplimentsPayload (rawCompliments) {
 	};
 }
 
+/**
+ *
+ * @param items
+ * @param indent
+ * @param eol
+ */
 function buildComplimentsArray (items, indent, eol) {
 	const line = eol || "\n";
 	if (!Array.isArray(items) || items.length === 0) return "[]";
@@ -289,6 +360,12 @@ function buildComplimentsArray (items, indent, eol) {
 	return `[${line}${values}${line}${indent}]`;
 }
 
+/**
+ *
+ * @param compliments
+ * @param indent
+ * @param eol
+ */
 function buildComplimentsConfigBlock (compliments, indent, eol) {
 	const line = eol || "\n";
 	const keys = ["anytime", "morning", "afternoon", "evening"];
@@ -301,6 +378,11 @@ function buildComplimentsConfigBlock (compliments, indent, eol) {
 	return `${indent}compliments: {${line}${entries}${line}${indent}}`;
 }
 
+/**
+ *
+ * @param block
+ * @param compliments
+ */
 function replaceComplimentsBlock (block, compliments) {
 	const eol = block.includes("\r\n") ? "\r\n" : "\n";
 	const complimentsMatch = block.match(/(\r?\n[ \t]*)compliments\s*:\s*\{/);
@@ -338,6 +420,11 @@ function replaceComplimentsBlock (block, compliments) {
 	return block.slice(0, moduleCloseIndex) + configBlock + block.slice(moduleCloseIndex);
 }
 
+/**
+ *
+ * @param block
+ * @param updateIntervalMs
+ */
 function upsertComplimentsUpdateInterval (block, updateIntervalMs) {
 	if (!Number.isFinite(updateIntervalMs) || updateIntervalMs < 1000) return block;
 	const interval = Math.round(updateIntervalMs);
@@ -373,9 +460,261 @@ function upsertComplimentsUpdateInterval (block, updateIntervalMs) {
 	return block.slice(0, moduleCloseIndex) + configBlock + block.slice(moduleCloseIndex);
 }
 
+/**
+ *
+ * @param value
+ */
+function isPlainObject (value) {
+	return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+/**
+ *
+ * @param value
+ */
+function isLikelySecretApiKey (value) {
+	return typeof value === "string" && (/^sk-\S{10,}$/).test(value.trim());
+}
+
+/**
+ *
+ * @param rawAssistant
+ */
+function normalizeAssistantPayload (rawAssistant) {
+	if (!isPlainObject(rawAssistant)) return null;
+
+	const fields = {};
+	const ui = {};
+	const chatgpt = {};
+	const sttOpenAI = {};
+
+	const assignString = (target, key, value, minLen, maxLen, regex = null) => {
+		if (typeof value !== "string") return;
+		const trimmed = value.trim();
+		if (trimmed.length < minLen || trimmed.length > maxLen) return;
+		if (regex && !regex.test(trimmed)) return;
+		target[key] = trimmed;
+	};
+
+	const assignNumber = (target, key, value, min, max, integer = false) => {
+		if (typeof value === "undefined" || value === null || value === "") return;
+		const parsed = Number(value);
+		if (!Number.isFinite(parsed) || parsed < min || parsed > max) return;
+		target[key] = integer
+			? Math.round(parsed)
+			: parsed;
+	};
+
+	assignString(fields, "activationKey", rawAssistant.activationKey, 1, 40);
+	if (Array.isArray(rawAssistant.activationKeyStates)) {
+		const allowedStates = new Set(["KEY_PRESSED", "KEY_LONGPRESSED", "KEY_UP", "KEY_DOWN", "KEY_HOLD"]);
+		const states = rawAssistant.activationKeyStates
+			.map((entry) => String(entry).trim())
+			.filter((entry) => allowedStates.has(entry));
+		if (states.length > 0) {
+			fields.activationKeyStates = Array.from(new Set(states));
+		}
+	}
+
+	if (typeof rawAssistant.listenToMMMKeyBindings === "boolean") {
+		fields.listenToMMMKeyBindings = rawAssistant.listenToMMMKeyBindings;
+	}
+	if (typeof rawAssistant.enableKeyboardFallback === "boolean") {
+		fields.enableKeyboardFallback = rawAssistant.enableKeyboardFallback;
+	}
+	if (typeof rawAssistant.microphonePermissionPreflight === "boolean") {
+		fields.microphonePermissionPreflight = rawAssistant.microphonePermissionPreflight;
+	}
+	if (typeof rawAssistant.showTranscript === "boolean") {
+		fields.showTranscript = rawAssistant.showTranscript;
+	}
+	if (typeof rawAssistant.ttsEnabled === "boolean") {
+		fields.ttsEnabled = rawAssistant.ttsEnabled;
+	}
+	if (typeof rawAssistant.sttFallbackToOpenAI === "boolean") {
+		fields.sttFallbackToOpenAI = rawAssistant.sttFallbackToOpenAI;
+	}
+
+	assignNumber(fields, "triggerCooldownMs", rawAssistant.triggerCooldownMs, 0, 120000, true);
+	assignNumber(fields, "maxRecordingMs", rawAssistant.maxRecordingMs, 1000, 180000, true);
+	assignNumber(fields, "noSpeechTimeoutMs", rawAssistant.noSpeechTimeoutMs, 500, 60000, true);
+	assignNumber(fields, "speechEndGraceMs", rawAssistant.speechEndGraceMs, 100, 10000, true);
+	assignNumber(fields, "requestTimeoutMs", rawAssistant.requestTimeoutMs, 1000, 180000, true);
+	assignNumber(fields, "responseMaxLength", rawAssistant.responseMaxLength, 200, 50000, true);
+	assignNumber(fields, "sttSilenceThreshold", rawAssistant.sttSilenceThreshold, 0.002, 0.2, false);
+
+	assignString(fields, "recognitionLanguage", rawAssistant.recognitionLanguage, 2, 16, /^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,6})?$/);
+	if (typeof rawAssistant.sttEngine === "string") {
+		const sttEngine = rawAssistant.sttEngine.trim().toLowerCase();
+		if (["auto", "browser", "openai"].includes(sttEngine)) {
+			fields.sttEngine = sttEngine;
+		}
+	}
+	assignString(fields, "promptPrefix", rawAssistant.promptPrefix, 0, 2000);
+	assignString(fields, "systemPrompt", rawAssistant.systemPrompt, 0, 4000);
+	assignString(fields, "loadingText", rawAssistant.loadingText, 1, 120);
+	assignString(fields, "placeholder", rawAssistant.placeholder, 1, 200);
+	assignString(fields, "width", rawAssistant.width, 2, 50);
+	assignString(fields, "minHeight", rawAssistant.minHeight, 2, 50);
+	assignString(fields, "maxHeight", rawAssistant.maxHeight, 2, 50);
+
+	const rawUi = isPlainObject(rawAssistant.ui)
+		? rawAssistant.ui
+		: null;
+	if (rawUi) {
+		if (typeof rawUi.theme === "string" && ["dark", "light", "auto"].includes(rawUi.theme.trim())) {
+			ui.theme = rawUi.theme.trim();
+		}
+		assignString(ui, "fontSize", rawUi.fontSize, 2, 20);
+		assignNumber(ui, "lineHeight", rawUi.lineHeight, 1, 3, false);
+		assignString(ui, "borderRadius", rawUi.borderRadius, 1, 20);
+		assignString(ui, "padding", rawUi.padding, 3, 40);
+		assignNumber(ui, "backgroundOpacity", rawUi.backgroundOpacity, 0, 1, false);
+	}
+
+	const rawChatGpt = isPlainObject(rawAssistant.chatgpt)
+		? rawAssistant.chatgpt
+		: null;
+	if (rawChatGpt) {
+		assignString(chatgpt, "model", rawChatGpt.model, 2, 80);
+		assignString(chatgpt, "apiBase", rawChatGpt.apiBase, 10, 120, /^https?:\/\//i);
+		if (typeof rawChatGpt.apiKeyEnv === "string") {
+			const apiKeyEnv = rawChatGpt.apiKeyEnv.trim();
+			if ((/^[A-Z_][A-Z0-9_]*$/).test(apiKeyEnv)) {
+				chatgpt.apiKeyEnv = apiKeyEnv;
+			} else if (isLikelySecretApiKey(apiKeyEnv) && !chatgpt.apiKey) {
+				chatgpt.apiKey = apiKeyEnv;
+				chatgpt.apiKeyEnv = "SECRET_OPENAI_API_KEY";
+			}
+		}
+		if (typeof rawChatGpt.apiKey === "string") {
+			const apiKey = rawChatGpt.apiKey.trim();
+			if (apiKey.length >= 10 && apiKey.length <= 300) {
+				chatgpt.apiKey = apiKey;
+			}
+		}
+		assignNumber(chatgpt, "temperature", rawChatGpt.temperature, 0, 2, false);
+		assignNumber(chatgpt, "maxOutputTokens", rawChatGpt.maxOutputTokens, 64, 8192, true);
+	}
+
+	const rawSttOpenAI = isPlainObject(rawAssistant.sttOpenAI)
+		? rawAssistant.sttOpenAI
+		: null;
+	if (rawSttOpenAI) {
+		assignString(sttOpenAI, "model", rawSttOpenAI.model, 2, 120);
+		assignString(sttOpenAI, "prompt", rawSttOpenAI.prompt, 0, 1200);
+		if (typeof rawSttOpenAI.language === "string") {
+			const sttLanguage = rawSttOpenAI.language.trim();
+			if (!sttLanguage) {
+				sttOpenAI.language = "";
+			} else if ((/^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,6})?$/).test(sttLanguage)) {
+				sttOpenAI.language = sttLanguage;
+			}
+		}
+	}
+
+	if (
+		Object.keys(fields).length === 0
+		&& Object.keys(ui).length === 0
+		&& Object.keys(chatgpt).length === 0
+		&& Object.keys(sttOpenAI).length === 0
+	) {
+		return null;
+	}
+
+	return {
+		fields,
+		ui,
+		chatgpt,
+		sttOpenAI
+	};
+}
+
+/**
+ *
+ * @param block
+ */
+function parseModuleBlockObject (block) {
+	try {
+		const parsed = vm.runInNewContext(`(${block})`, {}, { timeout: 100 });
+		return isPlainObject(parsed)
+			? parsed
+			: null;
+	} catch {
+		return null;
+	}
+}
+
+/**
+ *
+ * @param block
+ * @param assistantUpdate
+ */
+function replaceAIAssistantBlock (block, assistantUpdate) {
+	if (!assistantUpdate || !isPlainObject(assistantUpdate)) return block;
+	const moduleObject = parseModuleBlockObject(block);
+	if (!moduleObject || moduleObject.module !== "MMM-AIVoiceAssistant") {
+		return block;
+	}
+
+	const before = JSON.stringify(moduleObject);
+	if (!isPlainObject(moduleObject.config)) {
+		moduleObject.config = {};
+	}
+	const nextConfig = moduleObject.config;
+
+	// Enforce ChatGPT-only configuration and remove legacy provider switching.
+	delete nextConfig.provider;
+	delete nextConfig.providers;
+
+	for (const [key, value] of Object.entries(assistantUpdate.fields || {})) {
+		nextConfig[key] = value;
+	}
+
+	if (Object.keys(assistantUpdate.ui || {}).length > 0) {
+		nextConfig.ui = isPlainObject(nextConfig.ui)
+			? nextConfig.ui
+			: {};
+		Object.assign(nextConfig.ui, assistantUpdate.ui);
+	}
+
+	if (Object.keys(assistantUpdate.chatgpt || {}).length > 0) {
+		nextConfig.chatgpt = isPlainObject(nextConfig.chatgpt)
+			? nextConfig.chatgpt
+			: {};
+		if (
+			typeof nextConfig.chatgpt.apiKeyEnv === "string"
+			&& isLikelySecretApiKey(nextConfig.chatgpt.apiKeyEnv)
+		) {
+			nextConfig.chatgpt.apiKey = nextConfig.chatgpt.apiKeyEnv.trim();
+			nextConfig.chatgpt.apiKeyEnv = "SECRET_OPENAI_API_KEY";
+		}
+		Object.assign(nextConfig.chatgpt, assistantUpdate.chatgpt);
+	}
+
+	if (Object.keys(assistantUpdate.sttOpenAI || {}).length > 0) {
+		nextConfig.sttOpenAI = isPlainObject(nextConfig.sttOpenAI)
+			? nextConfig.sttOpenAI
+			: {};
+		Object.assign(nextConfig.sttOpenAI, assistantUpdate.sttOpenAI);
+	}
+
+	const after = JSON.stringify(moduleObject);
+	if (after === before) {
+		return block;
+	}
+
+	return JSON.stringify(moduleObject, null, "\t");
+}
+
 const REMOTE_SOURCE_CHECK_TIMEOUT_MS = 5000;
 const REMOTE_SOURCE_CHECK_MAX_URLS = 12;
 
+/**
+ *
+ * @param newsUrls
+ * @param calendarUrls
+ */
 function buildRemoteSourceCheckList (newsUrls, calendarUrls) {
 	const requested = []
 		.concat(Array.isArray(newsUrls) ? newsUrls : [])
@@ -388,7 +727,7 @@ function buildRemoteSourceCheckList (newsUrls, calendarUrls) {
 		if (typeof entry !== "string") continue;
 		const rawUrl = entry.trim();
 		if (!rawUrl || unique.has(rawUrl)) continue;
-		const checkUrl = /^webcal:\/\//i.test(rawUrl)
+		const checkUrl = (/^webcal:\/\//i).test(rawUrl)
 			? `http://${rawUrl.replace(/^webcal:\/\//i, "")}`
 			: rawUrl;
 
@@ -410,6 +749,10 @@ function buildRemoteSourceCheckList (newsUrls, calendarUrls) {
 	return list;
 }
 
+/**
+ *
+ * @param error
+ */
 function normalizeSourceCheckError (error) {
 	if (!error) return "Unknown error";
 	if (error.name === "AbortError") return "Request timed out";
@@ -419,6 +762,30 @@ function normalizeSourceCheckError (error) {
 	return error.message || "Network error";
 }
 
+/**
+ *
+ * @param io
+ */
+function getSocketClientCount (io) {
+	if (!io) return 0;
+	const engineCount = io.engine && Number.isFinite(io.engine.clientsCount)
+		? io.engine.clientsCount
+		: 0;
+	let namespaceCount;
+	try {
+		namespaceCount = io.of("/") && io.of("/").sockets
+			? io.of("/").sockets.size
+			: 0;
+	} catch {
+		namespaceCount = 0;
+	}
+	return Math.max(engineCount, namespaceCount);
+}
+
+/**
+ *
+ * @param url
+ */
 async function checkRemoteSourceUrl (url) {
 	const attempts = [
 		{ method: "HEAD", headers: {} },
@@ -619,7 +986,7 @@ function Server (configObj) {
 			app.post("/config", (req, res) => {
 				Log.log("Updating config...");
 				// read the config file
-				fs.readFile(path.resolve(global.root_path + "/config/config.js"), "utf8", (err, data) => {
+				fs.readFile(path.resolve(`${global.root_path}/config/config.js`), "utf8", (err, data) => {
 					if (err) {
 						Log.error("Error reading config file:", err);
 						res.status(500).send("Error reading config file");
@@ -634,7 +1001,7 @@ function Server (configObj) {
 					}
 
 					// write the new config file
-					fs.writeFile(path.resolve(global.root_path + "/config/config.js"), newConfig, "utf8", (err) => {
+					fs.writeFile(path.resolve(`${global.root_path}/config/config.js`), newConfig, "utf8", (err) => {
 						if (err) {
 							Log.error("Error writing config file:", err);
 							res.status(500).send("Error writing config file");
@@ -648,7 +1015,7 @@ function Server (configObj) {
 			});
 
 			app.get(withBasePath("remote/status"), (req, res) => {
-				const clients = io && io.engine ? io.engine.clientsCount : 0;
+				const clients = getSocketClientCount(io);
 				res.status(200).json({ ok: true, clients, ts: Date.now() });
 			});
 
@@ -686,14 +1053,10 @@ function Server (configObj) {
 			app.post(withBasePath("remote/command"), (req, res) => {
 				const type = req && req.body ? req.body.type : null;
 				if (type === "reload" || type === "apply_all") {
-					const clients = io && io.engine ? io.engine.clientsCount : 0;
+					const clients = getSocketClientCount(io);
 					Log.info("Remote reload request received, notifying clients");
-					if (clients === 0) {
-						res.status(409).json({ ok: false, error: "No clients connected", clients });
-						return;
-					}
 					io.emit("RELOAD");
-					res.status(200).json({ ok: true, clients });
+					res.status(200).json({ ok: true, clients, reloaded: clients > 0 });
 					return;
 				}
 				res.status(400).json({ ok: false, error: "Unsupported command" });
@@ -713,11 +1076,10 @@ function Server (configObj) {
 				const calendar = payload.calendar || null;
 				if (calendar && typeof calendar.url === "string") {
 					const url = calendar.url.trim();
-					if (url === "" || /^https?:\/\//.test(url)) {
+					if (url === "" || (/^https?:\/\//).test(url)) {
 						updates.calendar = { url };
 					}
 				}
-
 				const newsfeed = payload.newsfeed || null;
 				if (newsfeed && Array.isArray(newsfeed.feeds)) {
 					const feeds = newsfeed.feeds
@@ -735,10 +1097,9 @@ function Server (configObj) {
 							}
 							return null;
 						})
-						.filter((feed) => feed && feed.url && /^https?:\/\//.test(feed.url));
+						.filter((feed) => feed && feed.url && (/^https?:\/\//).test(feed.url));
 					updates.newsfeed = { feeds };
 				}
-
 				const locale = payload.locale || null;
 				if (locale && typeof locale.language === "string") {
 					const lang = locale.language.trim();
@@ -752,17 +1113,18 @@ function Server (configObj) {
 						updates.locale = Object.assign(updates.locale || {}, { timeFormat: tf });
 					}
 				}
-
 				const complimentsUpdate = normalizeComplimentsPayload(payload.compliments);
 				if (complimentsUpdate) {
 					updates.compliments = complimentsUpdate;
 				}
-
+				const assistantUpdate = normalizeAssistantPayload(payload.assistant);
+				if (assistantUpdate) {
+					updates.assistant = assistantUpdate;
+				}
 				if (Object.keys(updates).length === 0) {
 					res.status(400).json({ ok: false, error: "No valid updates" });
 					return;
 				}
-
 				const configFilePath = getConfigFilePath();
 				fs.readFile(configFilePath, "utf8", (err, data) => {
 					if (err) {
@@ -770,13 +1132,13 @@ function Server (configObj) {
 						res.status(500).json({ ok: false, error: "Error reading config file" });
 						return;
 					}
-
 					let newConfig = data;
 					let changed = false;
 					let weatherCount = 0;
 					let calendarCount = 0;
 					let newsfeedCount = 0;
 					let complimentsCount = 0;
+					let assistantCount = 0;
 					let localeChanged = false;
 
 					if (updates.locale && updates.locale.language) {
@@ -795,7 +1157,6 @@ function Server (configObj) {
 							localeChanged = true;
 						}
 					}
-
 					const ranges = getModulesArrayRanges(newConfig);
 					for (let i = ranges.length - 1; i >= 0; i--) {
 						const range = ranges[i];
@@ -829,23 +1190,25 @@ function Server (configObj) {
 							if (updatedBlock !== block) complimentsCount += 1;
 						}
 
+						if (moduleName === "MMM-AIVoiceAssistant" && updates.assistant) {
+							updatedBlock = replaceAIAssistantBlock(updatedBlock, updates.assistant);
+							if (updatedBlock !== block) assistantCount += 1;
+						}
 						if (updatedBlock !== block) {
 							newConfig = newConfig.slice(0, range.start) + updatedBlock + newConfig.slice(range.end);
 							changed = true;
 						}
 					}
-
 					if (!changed) {
-						const clients = io && io.engine ? io.engine.clientsCount : 0;
+						const clients = getSocketClientCount(io);
 						res.status(200).json({
 							ok: true,
-							updated: { weather: 0, calendar: 0, newsfeed: 0, compliments: 0, locale: false },
+							updated: { weather: 0, calendar: 0, newsfeed: 0, compliments: 0, assistant: 0, locale: false },
 							reloaded: false,
 							clients
 						});
 						return;
 					}
-
 					fs.writeFile(configFilePath, newConfig, "utf8", (writeErr) => {
 						if (writeErr) {
 							Log.error("Error writing config file:", writeErr);
@@ -853,38 +1216,29 @@ function Server (configObj) {
 							return;
 						}
 						Log.log("Remote config updated successfully");
-						const clients = io && io.engine ? io.engine.clientsCount : 0;
-						if (clients > 0) {
-							Log.info("Remote config updated, notifying clients");
-							io.emit("RELOAD");
-						}
+						const clients = getSocketClientCount(io);
+						Log.info("Remote config updated, notifying clients");
+						io.emit("RELOAD");
 						res.status(200).json({
 							ok: true,
-							updated: { weather: weatherCount, calendar: calendarCount, newsfeed: newsfeedCount, compliments: complimentsCount, locale: localeChanged },
+							updated: { weather: weatherCount, calendar: calendarCount, newsfeed: newsfeedCount, compliments: complimentsCount, assistant: assistantCount, locale: localeChanged },
 							reloaded: clients > 0,
 							clients
 						});
 					});
 				});
 			});
-
 			app.get("/cors", async (req, res) => await cors(req, res));
-
 			app.get("/version", (req, res) => getVersion(req, res));
-
 			app.get("/startup", (req, res) => getStartup(req, res));
-
 			app.get("/env", (req, res) => getEnvVars(req, res));
-
 			app.get("/", (req, res) => getHtml(req, res));
-
 			// Reload endpoint for watch mode - triggers browser reload
 			app.get("/reload", (req, res) => {
 				Log.info("Reload request received, notifying all clients");
 				io.emit("RELOAD");
 				res.status(200).send("OK");
 			});
-
 			server.on("listening", () => {
 				resolve({
 					app,
