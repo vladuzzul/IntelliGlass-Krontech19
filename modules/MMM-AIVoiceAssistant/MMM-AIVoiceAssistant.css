@@ -13,11 +13,6 @@
   z-index: 60;
 }
 
-.mmm-ai-assistant-shell.is-expanded {
-  background: linear-gradient(150deg, rgb(15 23 42 / 58%), rgb(8 12 20 / 56%));
-  backdrop-filter: blur(4px);
-}
-
 .mmm-ai-assistant-shell.is-scrollable {
   background: rgb(2 6 12 / 42%);
   backdrop-filter: none;

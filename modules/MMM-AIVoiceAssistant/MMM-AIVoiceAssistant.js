@@ -38,7 +38,7 @@ Module.register("MMM-AIVoiceAssistant", {
 		centerOnScreen: true,
 		expandToFullscreenOnOverflow: true,
 		fullscreenResponseThreshold: 900,
-		fullscreenLineThreshold: 10,
+		fullscreenLineThreshold: 15,
 		autoScrollLongResponse: true,
 		autoScrollSpeedPxPerSecond: 20,
 		autoScrollPauseMs: 1400,
@@ -1076,7 +1076,7 @@ Module.register("MMM-AIVoiceAssistant", {
 			: 900;
 		const resolvedLineThreshold = Number.isFinite(lineThreshold) && lineThreshold > 0
 			? lineThreshold
-			: 10;
+			: 15;
 
 		return this.responseText.length >= resolvedResponseThreshold
 			|| this.getResponseLineCount() >= resolvedLineThreshold;
@@ -1234,9 +1234,6 @@ Module.register("MMM-AIVoiceAssistant", {
 		shell.className = "mmm-ai-assistant-shell";
 		if (this.config.centerOnScreen) {
 			shell.classList.add("is-centered");
-		}
-		if (this.shouldUseExpandedLayout()) {
-			shell.classList.add("is-expanded");
 		}
 
 		const wrapper = document.createElement("div");

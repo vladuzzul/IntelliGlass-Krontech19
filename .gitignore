@@ -57,6 +57,10 @@ Temporary Items
 # Ignore all modules
 /modules/*
 
+# Keep MMM-AIVoiceAssistant module tracked
+!modules/MMM-AIVoiceAssistant/
+!modules/MMM-AIVoiceAssistant/**
+
 # Ignore users config file but keep the samples.
 config
 !config/config.js.sample
