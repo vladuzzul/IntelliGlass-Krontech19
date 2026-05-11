@@ -32,6 +32,8 @@ Module.register("MMM-AIVoiceAssistant", {
 		systemPrompt: "",
 		showTranscript: true,
 		ttsEnabled: true,
+		ttsVoiceName: "",
+		ttsVoiceLang: "",
 		placeholder: "Gesture the peace sign, then speak.",
 		loadingText: "Thinking",
 		responseMaxLength: 6000,
@@ -40,7 +42,7 @@ Module.register("MMM-AIVoiceAssistant", {
 		fullscreenResponseThreshold: 900,
 		fullscreenLineThreshold: 15,
 		autoScrollLongResponse: true,
-		autoScrollSpeedPxPerSecond: 20,
+		autoScrollSpeedPxPerSecond: 11,
 		autoScrollPauseMs: 1400,
 		width: "min(70vw, 980px)",
 		minHeight: "190px",
@@ -82,6 +84,8 @@ Module.register("MMM-AIVoiceAssistant", {
 		this.mediaRecorderCtor = window.MediaRecorder || null;
 		this.speechSynthesis = window.speechSynthesis || null;
 		this.ttsUtterance = null;
+		this.availableVoices = [];
+		this.voiceChangeHandler = null;
 		this.mediaStream = null;
 		this.mediaChunks = [];
 		this.selectedMimeType = "";
@@ -107,6 +111,7 @@ Module.register("MMM-AIVoiceAssistant", {
 		this.autoScrollDirection = 1;
 		this.autoScrollLastTick = 0;
 		this.isSpeaking = false;
+		this.loadAvailableVoices();
 		this.sendSocketNotification(INIT_NOTIFICATION, {
 			instanceId: this.identifier,
 			config: this.getHelperConfig()
@@ -917,6 +922,125 @@ Module.register("MMM-AIVoiceAssistant", {
 		return "en-US";
 	},
 
+	loadAvailableVoices () {
+		if (!this.speechSynthesis || typeof this.speechSynthesis.getVoices !== "function") {
+			return;
+		}
+
+		const voices = this.speechSynthesis.getVoices();
+		if (voices && voices.length) {
+			this.availableVoices = voices;
+			return;
+		}
+
+		if (this.voiceChangeHandler) {
+			return;
+		}
+
+		this.voiceChangeHandler = () => {
+			const updated = this.speechSynthesis.getVoices();
+			if (updated && updated.length) {
+				this.availableVoices = updated;
+			}
+		};
+
+		if (typeof this.speechSynthesis.addEventListener === "function") {
+			this.speechSynthesis.addEventListener("voiceschanged", this.voiceChangeHandler);
+		} else {
+			this.speechSynthesis.onvoiceschanged = this.voiceChangeHandler;
+		}
+	},
+
+	normalizeVoiceValue (value) {
+		return String(value || "")
+			.toLowerCase()
+			.replace(/\s+/g, " ")
+			.trim();
+	},
+
+	languageMatches (voiceLang, targetLang) {
+		const voice = this.normalizeVoiceValue(voiceLang);
+		const target = this.normalizeVoiceValue(targetLang);
+		if (!voice || !target) {
+			return false;
+		}
+		if (voice === target) {
+			return true;
+		}
+		const voicePrefix = voice.split("-")[0];
+		const targetPrefix = target.split("-")[0];
+		return Boolean(voicePrefix && targetPrefix && voicePrefix === targetPrefix);
+	},
+
+	resolveTtsVoice () {
+		if (!this.speechSynthesis || typeof this.speechSynthesis.getVoices !== "function") {
+			return null;
+		}
+
+		this.loadAvailableVoices();
+		const voices = this.availableVoices.length
+			? this.availableVoices
+			: this.speechSynthesis.getVoices();
+		if (!voices || !voices.length) {
+			return null;
+		}
+
+		const preferredName = this.normalizeVoiceValue(this.config.ttsVoiceName);
+		if (preferredName) {
+			const exactMatch = voices.find((voice) => this.normalizeVoiceValue(voice.name) === preferredName);
+			if (exactMatch) {
+				return exactMatch;
+			}
+			const partialMatch = voices.find((voice) => this.normalizeVoiceValue(voice.name).includes(preferredName));
+			if (partialMatch) {
+				return partialMatch;
+			}
+		}
+
+		const targetLang = String(this.config.ttsVoiceLang || this.resolveTtsLanguage() || "").trim();
+		const languageMatches = voices.filter((voice) => this.languageMatches(voice.lang, targetLang));
+		const pool = languageMatches.length ? languageMatches : voices;
+
+		const softVoiceTokens = [
+			"samantha",
+			"victoria",
+			"ava",
+			"allison",
+			"karen",
+			"moira",
+			"tessa",
+			"fiona",
+			"veena",
+			"zosia",
+			"ioana",
+			"joanna",
+			"aria",
+			"jenny",
+			"emma",
+			"serena",
+			"nora",
+			"zira",
+			"hazel",
+			"hedda",
+			"susan",
+			"katya"
+		];
+
+		const femaleTokenMatch = pool.find((voice) => this.normalizeVoiceValue(voice.name).includes("female"));
+		if (femaleTokenMatch) {
+			return femaleTokenMatch;
+		}
+
+		for (const token of softVoiceTokens) {
+			const match = pool.find((voice) => this.normalizeVoiceValue(voice.name).includes(token));
+			if (match) {
+				return match;
+			}
+		}
+
+		return pool[0] || null;
+	},
+
 	getTtsText (response) {
 		const normalized = String(response || "")
 			.replace(/\s+/g, " ")
@@ -987,6 +1111,13 @@ Module.register("MMM-AIVoiceAssistant", {
 		utterance.rate = 1;
 		utterance.pitch = 1;
 		utterance.volume = 1;
+		const selectedVoice = this.resolveTtsVoice();
+		if (selectedVoice) {
+			utterance.voice = selectedVoice;
+			if (selectedVoice.lang) {
+				utterance.lang = selectedVoice.lang;
+			}
+		}
 		utterance.onstart = () => {
 			if (!this.config.ttsEnabled) {
 				this.cancelTtsPlayback();

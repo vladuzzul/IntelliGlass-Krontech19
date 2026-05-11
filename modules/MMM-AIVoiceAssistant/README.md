@@ -1,6 +1,6 @@
 # MMM-AIVoiceAssistant
 
-Voice-enabled AI assistant module for MagicMirror.
+Voice-enabled AI assistant module made by us for IntelliGlass.
 
 ## Features
 
