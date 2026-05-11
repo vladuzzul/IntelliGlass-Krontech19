@@ -55,6 +55,7 @@ let config = {
 	timeFormat: 24,
 	units: "metric",
 	watchTargets: ["config/config.js", "css/custom.css"],
+	hideConfigSecrets: true,
 
 	modules: [
 		{
@@ -77,7 +78,7 @@ let config = {
 					{
 						fetchInterval: 7 * 24 * 60 * 60 * 1000,
 						symbol: "calendar-check",
-						url: "ur url here"
+						url: "https://ics.calendarlabs.com/76/mm3137/US_Holidays.ics"
 					}
 				]
 			}
@@ -116,8 +117,8 @@ let config = {
 			config: {
 				weatherProvider: "openmeteo",
 				type: "current",
-				lat: 46.1866,
-				lon: 21.3123
+				lat: 45.6579,
+				lon: 25.6012
 			}
 		},
 		{
@@ -127,8 +128,8 @@ let config = {
 			config: {
 				weatherProvider: "openmeteo",
 				type: "forecast",
-				lat: 46.1866,
-				lon: 21.3123
+				lat: 45.6579,
+				lon: 25.6012
 			}
 		},
 		{
@@ -162,6 +163,49 @@ let config = {
         		enableKeyboard: true
 			},
 		},
+			{
+	"module": "MMM-AIVoiceAssistant",
+	"position": "top_bar",
+	"config": {
+		"activationKey": "ArrowDown",
+		"activationKeyStates": [
+			"KEY_PRESSED",
+			"KEY_LONGPRESSED"
+		],
+		"recognitionLanguage": "en-US",
+		"sttEngine": "openai",
+		"sttFallbackToOpenAI": true,
+		"sttSilenceThreshold": 0.018,
+		"sttOpenAI": {
+			"model": "gpt-4o-mini-transcribe",
+			"language": "en",
+			"prompt": ""
+		},
+		"maxRecordingMs": 12000,
+		"noSpeechTimeoutMs": 5000,
+		"speechEndGraceMs": 900,
+		"requestTimeoutMs": 25000,
+		"promptPrefix": "Your name is 'Jarvis' and are a helpful home assistant inside IntelliGlass smart mirror. Answer concisely and clearly in 10 sentences maximum.",
+		"ui": {
+			"theme": "dark",
+			"fontSize": "22px"
+		},
+		"chatgpt": {
+			"model": "gpt-4o-mini",
+			"apiBase": "https://api.openai.com/v1",
+			"apiKeyEnv": "SECRET_OPENAI_API_KEY",
+			"apiKey": "YOUR_API_KEY_HERE",
+			"temperature": 0.7,
+			"maxOutputTokens": 768
+		},
+		"listenToMMMKeyBindings": true,
+		"enableKeyboardFallback": false,
+		"microphonePermissionPreflight": true,
+		"showTranscript": true,
+		"systemPrompt": "",
+		"ttsEnabled": true
+	}
+},
 		{
 			module: "MMM-QRCode",
 			position: "top_bar",
@@ -186,7 +230,8 @@ let config = {
 			slides: {
 				main: ['clock', 'weather','compliments', 'calendar'],
 				"Slide 2": ['newsfeed'],
-				"Slide 3": ['MMM-QRCode'],
+				"Slide 3": ['MMM-AIVoiceAssistant'],
+				"Slide 4": ['MMM-QRCode'],
 			},
 			keyBindings: { 
 				enabled: true,
@@ -195,7 +240,6 @@ let config = {
 				map: {
 					NextSlide: "ArrowRight", 
 					PrevSlide: "ArrowLeft", 
-					Slide0:    "Home"
 				},
 				
 			}},
