@@ -108,32 +108,40 @@ function ensureVenv () {
 	runSyncOrExit(venvPython, ["-m", "pip", "install", "-r", requirementsPath], "Dependency install");
 }
 
-ensureVenv();
+const disableFinger = process.env.MM_DISABLE_FINGER === "1";
 
-const defaultTargetApp = process.platform === "darwin" ? "Electron" : "MagicMirror";
-const targetAppName = process.env.MM_TARGET_APP || defaultTargetApp;
-const fingerEnv = { ...process.env, MM_TARGET_APP: targetAppName };
-const fingerProc = Spawn(venvPython, ["finger.py"], {
-	env: fingerEnv,
-	cwd: global.root_path,
-	stdio: "inherit"
-});
+if (!disableFinger) {
+	ensureVenv();
+}
 
-fingerProc.on("error", (err) => {
-	Log.error("Failed to start finger.py:", err);
-	process.exit(1);
-});
+if (!disableFinger) {
+	const defaultTargetApp = process.platform === "darwin" ? "Electron" : "MagicMirror";
+	const targetAppName = process.env.MM_TARGET_APP || defaultTargetApp;
+	const fingerEnv = { ...process.env, MM_TARGET_APP: targetAppName };
+	const fingerProc = Spawn(venvPython, ["finger.py"], {
+		env: fingerEnv,
+		cwd: global.root_path,
+		stdio: "inherit"
+	});
 
-fingerProc.on("exit", (code, signal) => {
-	if (signal) {
-		Log.error(`finger.py exited due to signal: ${signal}`);
+	fingerProc.on("error", (err) => {
+		Log.error("Failed to start finger.py:", err);
 		process.exit(1);
-	}
-	if (code !== null && code !== 0) {
-		Log.error(`finger.py exited with code: ${code}`);
-		process.exit(1);
-	}
-});
+	});
+
+	fingerProc.on("exit", (code, signal) => {
+		if (signal) {
+			Log.error(`finger.py exited due to signal: ${signal}`);
+			process.exit(1);
+		}
+		if (code !== null && code !== 0) {
+			Log.error(`finger.py exited with code: ${code}`);
+			process.exit(1);
+		}
+	});
+} else {
+	Log.log("MM_DISABLE_FINGER=1 set, skipping finger.py startup.");
+}
 
 if (process.env.MM_CONFIG_FILE) {
 	global.configuration_file = process.env.MM_CONFIG_FILE.replace(`${global.root_path}/`, "");
