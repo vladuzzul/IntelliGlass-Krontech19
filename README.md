@@ -75,6 +75,18 @@ sudo apt update
 sudo apt install -y python3-picamera2 python3-libcamera rpicam-apps
 ```
 
+For Raspberry Pi OS based on Debian 13 (Trixie), install Python 3.12 for `finger.py`:
+
+```bash
+sudo apt install -y python3.12 python3.12-venv
+```
+
+Then start MagicMirror with:
+
+```bash
+MM_FINGER_PYTHON=python3.12 MM_CAMERA_BACKEND=picamera2 npm start
+```
+
 On Linux, the app creates `.venv` with `--system-site-packages` by default so `python3-picamera2` installed via `apt` is visible inside `finger.py`.
 
 If you created `.venv` before this change, recreate it once:

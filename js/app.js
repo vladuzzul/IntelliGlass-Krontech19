@@ -68,16 +68,41 @@ function isPython3 (candidate) {
 
 /**
  *
+ * @param candidate
+ * @returns {{major: number, minor: number}|null}
+ */
+function getPythonVersion (candidate) {
+	const result = spawnSync(candidate, ["-c", "import sys; print(f'{sys.version_info[0]}.{sys.version_info[1]}')"], { encoding: "utf8" });
+	if (result.error || result.status !== 0) {
+		return null;
+	}
+
+	const version = (result.stdout || "").trim();
+	const [majorRaw, minorRaw] = version.split(".");
+	const major = Number.parseInt(majorRaw, 10);
+	const minor = Number.parseInt(minorRaw, 10);
+	if (Number.isNaN(major) || Number.isNaN(minor)) {
+		return null;
+	}
+
+	return { major, minor };
+}
+
+/**
+ *
  */
 function findBasePython () {
 	const candidates = [];
+	if (process.env.MM_FINGER_PYTHON) {
+		candidates.push(process.env.MM_FINGER_PYTHON);
+	}
 	if (process.env.PYTHON) {
 		candidates.push(process.env.PYTHON);
 	}
 	if (process.platform === "win32") {
 		candidates.push("python");
 	} else {
-		candidates.push("python3", "python");
+		candidates.push("python3.12", "python3.11", "python3.10", "python3", "python");
 	}
 
 	for (const candidate of candidates) {
@@ -119,6 +144,23 @@ function ensureVenv () {
 	const basePython = findBasePython();
 	if (!basePython) {
 		Log.error("No system Python found to create a virtual environment.");
+		process.exit(1);
+	}
+	const basePythonVersion = getPythonVersion(basePython);
+	if (
+		process.platform === "linux"
+		&& process.arch === "arm64"
+		&& basePythonVersion
+		&& basePythonVersion.major === 3
+		&& basePythonVersion.minor >= 13
+	) {
+		Log.error(
+			"finger.py requires MediaPipe, and Linux ARM64 wheels are not available for Python 3.13+."
+		);
+		Log.error(
+			`Detected ${basePython} (${basePythonVersion.major}.${basePythonVersion.minor}). `
+			+ "Install python3.12/python3.11 and rerun with MM_FINGER_PYTHON=python3.12."
+		);
 		process.exit(1);
 	}
 
