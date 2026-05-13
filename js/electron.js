@@ -48,6 +48,7 @@ function createWindow () {
 	let electronOptionsDefaults = {
 		width: electronSize.width,
 		height: electronSize.height,
+		title: process.env.MM_WINDOW_TITLE || "MagicMirror",
 		icon: "favicon.svg",
 		x: 0,
 		y: 0,
@@ -87,6 +88,7 @@ function createWindow () {
 
 	// Create the browser window.
 	mainWindow = new BrowserWindow(electronOptions);
+	mainWindow.setTitle(process.env.MM_WINDOW_TITLE || "MagicMirror");
 
 	/*
 	 * and load the index.html of the app.

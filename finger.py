@@ -50,6 +50,7 @@ last_sign = None
 TARGET_APP_NAME = os.environ.get("MM_TARGET_APP", "MagicMirror")
 MM_BASE_URL = os.environ.get("MM_BASE_URL", "http://127.0.0.1:8080")
 MM_CAROUSEL_MODULE = os.environ.get("MM_CAROUSEL_MODULE", "MMM-Carousel")
+DIRECT_CAROUSEL_ENABLED = os.environ.get("MM_DIRECT_CAROUSEL", "0") == "1"
 KEY_FALLBACK_ENABLED = os.environ.get("MM_KEY_FALLBACK", "1") == "1"
 LINUX_KEY_TOOL = os.environ.get("MM_LINUX_KEY_TOOL", "auto").strip().lower()
 stable_sign = None
@@ -152,21 +153,6 @@ def _send_linux_key(key_name):
     if xdotool_key is None:
         return False
 
-    is_wayland = bool(os.environ.get("WAYLAND_DISPLAY"))
-
-    if LINUX_KEY_TOOL in {"auto", "wtype"} and is_wayland and which("wtype") and wtype_key:
-        try:
-            result = subprocess.run(
-                ["wtype", "-k", wtype_key],
-                check=False,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
-            )
-            if result.returncode == 0:
-                return True
-        except Exception:
-            pass
-
     if LINUX_KEY_TOOL in {"auto", "xdotool"} and which("xdotool"):
         title_patterns = [
             TARGET_APP_NAME,
@@ -218,6 +204,19 @@ def _send_linux_key(key_name):
         except Exception:
             pass
 
+    if LINUX_KEY_TOOL == "wtype" and bool(os.environ.get("WAYLAND_DISPLAY")) and which("wtype") and wtype_key:
+        try:
+            result = subprocess.run(
+                ["wtype", "-k", wtype_key],
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+            if result.returncode == 0:
+                return True
+        except Exception:
+            pass
+
     return False
 
 
@@ -226,13 +225,13 @@ def try_press(key_name):
     last = last_action.get(key_name, 0.0)
     if (now - last) < ACTION_COOLDOWN:
         return
-    # Preferred path on Raspberry Pi and kiosk setups: direct module API.
-    if key_name == "right" and _send_carousel_action("next"):
-        last_action[key_name] = now
-        return
-    if key_name == "left" and _send_carousel_action("previous"):
-        last_action[key_name] = now
-        return
+    if DIRECT_CAROUSEL_ENABLED:
+        if key_name == "right" and _send_carousel_action("next"):
+            last_action[key_name] = now
+            return
+        if key_name == "left" and _send_carousel_action("previous"):
+            last_action[key_name] = now
+            return
     if not KEY_FALLBACK_ENABLED:
         print(
             f"Carousel API send failed for '{key_name}'. "
