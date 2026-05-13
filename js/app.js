@@ -31,7 +31,13 @@ const venvDir = path.join(global.root_path, ".venv");
 const venvPython = process.platform === "win32"
 	? path.join(venvDir, "Scripts", "python.exe")
 	: path.join(venvDir, "bin", "python");
-const requirementsPath = path.join(global.root_path, "requirements.txt");
+const defaultRequirementsFile = fs.existsSync(path.join(global.root_path, "requirements-finger.txt"))
+	? "requirements-finger.txt"
+	: "requirements.txt";
+const requirementsFile = process.env.MM_FINGER_REQUIREMENTS || defaultRequirementsFile;
+const requirementsPath = path.join(global.root_path, requirementsFile);
+const useSystemSitePackages = process.env.MM_VENV_SYSTEM_SITE_PACKAGES === "1"
+  || (process.platform === "linux" && process.env.MM_VENV_SYSTEM_SITE_PACKAGES !== "0");
 
 /**
  *
@@ -88,10 +94,25 @@ function findBasePython () {
  */
 function ensureVenv () {
 	if (fs.existsSync(venvPython)) {
+		const venvCfgPath = path.join(venvDir, "pyvenv.cfg");
+		if (useSystemSitePackages && fs.existsSync(venvCfgPath)) {
+			const venvCfg = fs.readFileSync(venvCfgPath, "utf8");
+			const hasSystemSitePackages = (/include-system-site-packages\s*=\s*true/i).test(venvCfg);
+			if (!hasSystemSitePackages) {
+				Log.warn(
+					"Existing .venv was created without system site-packages. "
+					+ "Raspberry Pi camera packages from apt may be unavailable inside finger.py venv."
+				);
+				Log.warn(
+					"Delete .venv and restart to recreate it with system site-packages, "
+					+ "or set MM_VENV_SYSTEM_SITE_PACKAGES=0 to keep strict isolation."
+				);
+			}
+		}
 		return;
 	}
 	if (!fs.existsSync(requirementsPath)) {
-		Log.error("requirements.txt not found. Cannot create venv for finger.py.");
+		Log.error(`${requirementsFile} not found. Cannot create venv for finger.py.`);
 		process.exit(1);
 	}
 
@@ -102,9 +123,14 @@ function ensureVenv () {
 	}
 
 	Log.log("Creating local Python venv for finger.py...");
-	runSyncOrExit(basePython, ["-m", "venv", venvDir], "Virtualenv creation");
+	const venvArgs = ["-m", "venv"];
+	if (useSystemSitePackages) {
+		venvArgs.push("--system-site-packages");
+	}
+	venvArgs.push(venvDir);
+	runSyncOrExit(basePython, venvArgs, "Virtualenv creation");
 
-	Log.log("Installing Python dependencies from requirements.txt...");
+	Log.log(`Installing Python dependencies from ${requirementsFile}...`);
 	runSyncOrExit(venvPython, ["-m", "pip", "install", "-r", requirementsPath], "Dependency install");
 }
 

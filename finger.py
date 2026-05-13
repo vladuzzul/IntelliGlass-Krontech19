@@ -1,18 +1,24 @@
 """
 Gesture-based media controller using MediaPipe Hands and OpenCV.
-To run well: 
-MM_TARGET_APP="Electron" .venv/bin/python finger.py 
+To run well:
+MM_TARGET_APP="Electron" .venv/bin/python finger.py
 """
 
-import cv2
-# Import compatibility module first to patch mediapipe
-import mediapipe_compat
-import mediapipe as mp
-import time
 import os
 import platform
 import subprocess
-from urllib import request, error
+import time
+from urllib import request
+
+import cv2
+# Import compatibility module first to patch mediapipe
+import mediapipe_compat  # noqa: F401
+import mediapipe as mp
+
+try:
+    from picamera2 import Picamera2
+except Exception:
+    Picamera2 = None
 
 try:
     import pyautogui
@@ -21,11 +27,15 @@ except Exception:
 
 mp_drawing = mp.solutions.drawing_utils
 mp_hands = mp.solutions.hands
-##################################
+
 tipIds = [4, 8, 12, 16, 20]
 state = None
-Gesture = None
-wCam, hCam = 720, 640
+wCam = int(os.environ.get("MM_CAMERA_WIDTH", "720"))
+hCam = int(os.environ.get("MM_CAMERA_HEIGHT", "640"))
+CAMERA_BACKEND = os.environ.get("MM_CAMERA_BACKEND", "auto").strip().lower()
+CAMERA_INDEX = int(os.environ.get("MM_CAMERA_INDEX", "0"))
+SHOW_CAMERA_WINDOW = os.environ.get("MM_SHOW_CAMERA_WINDOW", "1") == "1"
+CAMERA_INIT_WAIT = float(os.environ.get("MM_CAMERA_INIT_WAIT", "0.25"))
 last_action = {"left": 0.0, "right": 0.0, "up": 0.0, "down": 0.0, "space": 0.0}
 ACTION_COOLDOWN = 0.7
 last_sign = None
@@ -45,6 +55,45 @@ MAC_KEY_CODES = {
     "up": 126,
     "space": 49
 }
+
+
+class OpenCVCamera:
+    def __init__(self, cap, index):
+        self.cap = cap
+        self.index = index
+
+    def read(self):
+        return self.cap.read()
+
+    def release(self):
+        self.cap.release()
+
+
+class Picamera2Camera:
+    def __init__(self, picam2):
+        self.picam2 = picam2
+
+    def read(self):
+        try:
+            frame = self.picam2.capture_array()
+            if frame is None:
+                return False, None
+            if frame.ndim == 3 and frame.shape[2] == 4:
+                frame = frame[:, :, :3]
+            return True, frame
+        except Exception as err:
+            print(f"Picamera2 capture error: {err}")
+            return False, None
+
+    def release(self):
+        try:
+            self.picam2.stop()
+        except Exception:
+            pass
+        try:
+            self.picam2.close()
+        except Exception:
+            pass
 
 
 def _send_carousel_action(action):
@@ -163,82 +212,213 @@ def detect_sign_and_action(lm_list, total_fingers, current_state):
             action = "down"
 
     return sign, action, new_state
-############################
-def fingerPosition(image, handNo=0):
-    lmList = []
-    if results.multi_hand_landmarks:
-        myHand = results.multi_hand_landmarks[handNo]
-        for id, lm in enumerate(myHand.landmark):
-            # print(id,lm)
-            h, w, c = image.shape
+
+
+def finger_position(image, detection_results, hand_no=0):
+    lm_list = []
+    if detection_results.multi_hand_landmarks:
+        my_hand = detection_results.multi_hand_landmarks[hand_no]
+        for landmark_id, lm in enumerate(my_hand.landmark):
+            h, w, _ = image.shape
             cx, cy = int(lm.x * w), int(lm.y * h)
-            lmList.append([id, cx, cy])
-    return lmList
-# For webcam input:
-cap = cv2.VideoCapture(0)
-cap.set(3, wCam)
-cap.set(4, hCam)
-with mp_hands.Hands(
-    min_detection_confidence=0.8,
-    min_tracking_confidence=0.5) as hands:
-  while cap.isOpened():
-    success, image = cap.read()
-    if not success:
-        print("Ignoring empty camera frame.")
-        continue
-    # Flip the image horizontally for a later selfie-view display, and convert
-    # the BGR image to RGB.
-    image = cv2.cvtColor(cv2.flip(image, 1), cv2.COLOR_BGR2RGB)
-    image.flags.writeable = False
-    results = hands.process(image)
-    # Draw the hand annotations on the image.
-    image.flags.writeable = True
-    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-    if results.multi_hand_landmarks:
-      for hand_landmarks in results.multi_hand_landmarks:
-        mp_drawing.draw_landmarks(
-            image, hand_landmarks, mp_hands.HAND_CONNECTIONS)
-    lmList = fingerPosition(image)
-    #print(lmList)
-    if len(lmList) != 0:
-        fingers = []
-        for id in range(1, 5):
-            if lmList[tipIds[id]][2] < lmList[tipIds[id] - 2][2]:
-                #state = "Play"
-                fingers.append(1)
-            if (lmList[tipIds[id]][2] > lmList[tipIds[id] - 2][2] ):
-               # state = "Pause"
-               # pyautogui.press('space')
-               # print("Space")
-                fingers.append(0)
-        totalFingers = fingers.count(1)
-        current_sign, pending_action, state = detect_sign_and_action(lmList, totalFingers, state)
-        if current_sign == stable_sign:
-            stable_frames += 1
-        else:
-            stable_sign = current_sign
-            stable_frames = 1
+            lm_list.append([landmark_id, cx, cy])
+    return lm_list
 
-        if current_sign != last_sign:
-            print(f"Detected sign: {current_sign}")
-            last_sign = current_sign
-            if last_dispatched_sign is not None and current_sign != last_dispatched_sign:
-                last_dispatched_sign = None
 
-        if stable_frames == STABLE_FRAMES_REQUIRED:
-            print(f"Stable sign confirmed: {current_sign}")
-            if pending_action is not None and current_sign != last_dispatched_sign:
-                try_press(pending_action)
-                print(f"Action fired: {pending_action}")
-                last_dispatched_sign = current_sign
+def _parse_camera_indexes():
+    raw_indexes = os.environ.get("MM_CAMERA_INDEXES")
+    if raw_indexes:
+        indexes = []
+        for token in raw_indexes.split(","):
+            token = token.strip()
+            if not token:
+                continue
+            try:
+                indexes.append(int(token))
+            except ValueError:
+                print(f"Ignoring invalid camera index '{token}' from MM_CAMERA_INDEXES.")
     else:
-        last_dispatched_sign = None
-    #cv2.putText(image, str("Gesture"), (10,40), cv2.FONT_HERSHEY_SIMPLEX,
-     #              1, (255, 0, 0), 2)
-    cv2.imshow("Media Controller", image)
-    key = cv2.waitKey(1) & 0xFF
-    # if the `q` key was pressed, break from the loop
-    if key == ord("q"):
-        break
-  cv2.destroyAllWindows()
-  cap.release()
+        indexes = [CAMERA_INDEX, 0, 1, 2]
+
+    unique = []
+    for index in indexes:
+        if index not in unique:
+            unique.append(index)
+    return unique
+
+
+def _open_opencv_camera():
+    indexes = _parse_camera_indexes()
+    for index in indexes:
+        backend = getattr(cv2, "CAP_V4L2", None)
+        if platform.system() == "Linux" and backend is not None:
+            cap = cv2.VideoCapture(index, backend)
+        else:
+            cap = cv2.VideoCapture(index)
+
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, wCam)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, hCam)
+        if not cap.isOpened():
+            cap.release()
+            continue
+
+        ok, frame = cap.read()
+        if ok and frame is not None:
+            print(f"Camera backend: OpenCV (index {index})")
+            return OpenCVCamera(cap, index)
+
+        cap.release()
+    return None
+
+
+def _open_picamera2_camera():
+    if Picamera2 is None:
+        return None
+
+    try:
+        picam2 = Picamera2()
+        config = picam2.create_preview_configuration(
+            main={"size": (wCam, hCam), "format": "BGR888"}
+        )
+        picam2.configure(config)
+        picam2.start()
+
+        # Enable continuous autofocus on Camera Module 3 when controls are available.
+        try:
+            from libcamera import controls
+
+            picam2.set_controls({"AfMode": controls.AfModeEnum.Continuous})
+        except Exception:
+            pass
+
+        time.sleep(CAMERA_INIT_WAIT)
+        frame = picam2.capture_array()
+        if frame is None:
+            picam2.stop()
+            return None
+        print("Camera backend: Picamera2")
+        return Picamera2Camera(picam2)
+    except Exception as err:
+        print(f"Picamera2 init failed: {err}")
+        return None
+
+
+def create_camera():
+    backend = CAMERA_BACKEND
+    if backend not in {"auto", "opencv", "picamera2"}:
+        print(f"Invalid MM_CAMERA_BACKEND='{backend}', falling back to auto.")
+        backend = "auto"
+
+    if backend in {"auto", "opencv"}:
+        camera = _open_opencv_camera()
+        if camera is not None:
+            return camera
+        if backend == "opencv":
+            raise RuntimeError(
+                "Failed to open camera with OpenCV backend. "
+                "Set MM_CAMERA_BACKEND=picamera2 to force Picamera2."
+            )
+
+    if backend in {"auto", "picamera2"}:
+        camera = _open_picamera2_camera()
+        if camera is not None:
+            return camera
+        if backend == "picamera2":
+            raise RuntimeError(
+                "Failed to open camera with Picamera2 backend. "
+                "Check python3-picamera2/python3-libcamera and camera ribbon connection."
+            )
+
+    raise RuntimeError(
+        "No camera backend could be initialized. "
+        "Try MM_CAMERA_BACKEND=picamera2 on Raspberry Pi Camera Module 3."
+    )
+
+
+def main():
+    global state
+    global last_sign
+    global stable_sign
+    global stable_frames
+    global last_dispatched_sign
+
+    try:
+        camera = create_camera()
+    except RuntimeError as err:
+        print(err)
+        raise SystemExit(1)
+
+    try:
+        with mp_hands.Hands(
+            min_detection_confidence=0.8,
+            min_tracking_confidence=0.5
+        ) as hands:
+            while True:
+                success, image = camera.read()
+                if not success or image is None:
+                    print("Ignoring empty camera frame.")
+                    continue
+
+                # Flip for selfie view, then convert BGR->RGB for MediaPipe.
+                image = cv2.cvtColor(cv2.flip(image, 1), cv2.COLOR_BGR2RGB)
+                image.flags.writeable = False
+                results = hands.process(image)
+
+                # Draw the hand annotations on a BGR image.
+                image.flags.writeable = True
+                image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+                if results.multi_hand_landmarks:
+                    for hand_landmarks in results.multi_hand_landmarks:
+                        mp_drawing.draw_landmarks(
+                            image, hand_landmarks, mp_hands.HAND_CONNECTIONS
+                        )
+
+                lm_list = finger_position(image, results)
+                if len(lm_list) != 0:
+                    fingers = []
+                    for finger_id in range(1, 5):
+                        if lm_list[tipIds[finger_id]][2] < lm_list[tipIds[finger_id] - 2][2]:
+                            fingers.append(1)
+                        if lm_list[tipIds[finger_id]][2] > lm_list[tipIds[finger_id] - 2][2]:
+                            fingers.append(0)
+
+                    total_fingers = fingers.count(1)
+                    current_sign, pending_action, state = detect_sign_and_action(
+                        lm_list, total_fingers, state
+                    )
+                    if current_sign == stable_sign:
+                        stable_frames += 1
+                    else:
+                        stable_sign = current_sign
+                        stable_frames = 1
+
+                    if current_sign != last_sign:
+                        print(f"Detected sign: {current_sign}")
+                        last_sign = current_sign
+                        if last_dispatched_sign is not None and current_sign != last_dispatched_sign:
+                            last_dispatched_sign = None
+
+                    if stable_frames == STABLE_FRAMES_REQUIRED:
+                        print(f"Stable sign confirmed: {current_sign}")
+                        if pending_action is not None and current_sign != last_dispatched_sign:
+                            try_press(pending_action)
+                            print(f"Action fired: {pending_action}")
+                            last_dispatched_sign = current_sign
+                else:
+                    last_dispatched_sign = None
+
+                if SHOW_CAMERA_WINDOW:
+                    cv2.imshow("Media Controller", image)
+                    key = cv2.waitKey(1) & 0xFF
+                    if key == ord("q"):
+                        break
+    except KeyboardInterrupt:
+        print("Stopping gesture controller.")
+    finally:
+        if SHOW_CAMERA_WINDOW:
+            cv2.destroyAllWindows()
+        camera.release()
+
+
+if __name__ == "__main__":
+    main()

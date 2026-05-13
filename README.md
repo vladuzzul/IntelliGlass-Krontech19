@@ -59,3 +59,33 @@ To donate, please follow [this](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xcl
   </a>
 </p>
 # IntelliGlass-Krontech19
+
+## Raspberry Pi 4 + Camera Module 3 (finger.py)
+
+`finger.py` now supports camera backend selection:
+
+- `MM_CAMERA_BACKEND=auto` (default): tries OpenCV first, then Picamera2.
+- `MM_CAMERA_BACKEND=opencv`: force `/dev/video*` capture.
+- `MM_CAMERA_BACKEND=picamera2`: force libcamera/Picamera2.
+
+Recommended setup on Raspberry Pi OS (Bookworm or newer):
+
+```bash
+sudo apt update
+sudo apt install -y python3-picamera2 python3-libcamera rpicam-apps
+```
+
+On Linux, the app creates `.venv` with `--system-site-packages` by default so `python3-picamera2` installed via `apt` is visible inside `finger.py`.
+
+If you created `.venv` before this change, recreate it once:
+
+```bash
+rm -rf .venv
+```
+
+Optional environment variables:
+
+- `MM_CAMERA_INDEX` (default `0`)
+- `MM_CAMERA_INDEXES` (example: `0,1,2`)
+- `MM_CAMERA_WIDTH` / `MM_CAMERA_HEIGHT`
+- `MM_SHOW_CAMERA_WINDOW=0` to disable OpenCV preview window
