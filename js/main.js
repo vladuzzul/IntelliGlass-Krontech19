@@ -613,6 +613,22 @@ const MM = (function () {
 					Log.warn("Reload notification received from server");
 					window.location.reload(true);
 				});
+
+				socket.on("REMOTE_KEY", ({ key } = {}) => {
+					if (typeof key !== "string" || key.length === 0) {
+						Log.warn("Ignoring malformed remote key.");
+						return;
+					}
+
+					const target = document.body || document;
+					const eventOptions = {
+						key,
+						bubbles: true,
+						cancelable: true
+					};
+					target.dispatchEvent(new KeyboardEvent("keydown", eventOptions));
+					target.dispatchEvent(new KeyboardEvent("keyup", eventOptions));
+				});
 			}
 
 			if (config.reloadAfterServerRestart) {

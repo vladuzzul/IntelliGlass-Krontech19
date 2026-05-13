@@ -1062,6 +1062,39 @@ function Server (configObj) {
 				res.status(400).json({ ok: false, error: "Unsupported command" });
 			});
 
+			app.post(withBasePath("remote/key"), (req, res) => {
+				const rawKey = req && req.body && typeof req.body.key === "string" ? req.body.key : "";
+				const key = rawKey === " " ? rawKey : rawKey.trim();
+				const allowedKeys = new Set([
+					"ArrowLeft",
+					"ArrowRight",
+					"ArrowUp",
+					"ArrowDown",
+					" ",
+					"Enter",
+					"Escape",
+					"Home",
+					"0",
+					"1",
+					"2",
+					"3",
+					"4",
+					"5",
+					"6",
+					"7",
+					"8",
+					"9"
+				]);
+				if (!allowedKeys.has(key)) {
+					res.status(400).json({ ok: false, error: "Unsupported key" });
+					return;
+				}
+
+				const clients = getSocketClientCount(io);
+				io.emit("REMOTE_KEY", { key });
+				res.status(200).json({ ok: true, clients, delivered: clients > 0 });
+			});
+
 			app.post(withBasePath("remote/config"), (req, res) => {
 				const payload = req && req.body ? req.body : {};
 				const updates = {};

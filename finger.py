@@ -4,6 +4,7 @@ To run well:
 MM_TARGET_APP="Electron" .venv/bin/python finger.py
 """
 
+import json
 import os
 import platform
 import subprocess
@@ -51,6 +52,7 @@ TARGET_APP_NAME = os.environ.get("MM_TARGET_APP", "MagicMirror")
 MM_BASE_URL = os.environ.get("MM_BASE_URL", "http://127.0.0.1:8080")
 MM_CAROUSEL_MODULE = os.environ.get("MM_CAROUSEL_MODULE", "MMM-Carousel")
 DIRECT_CAROUSEL_ENABLED = os.environ.get("MM_DIRECT_CAROUSEL", "0") == "1"
+REMOTE_KEY_ENABLED = os.environ.get("MM_REMOTE_KEY", "1") == "1"
 KEY_FALLBACK_ENABLED = os.environ.get("MM_KEY_FALLBACK", "1") == "1"
 LINUX_KEY_TOOL = os.environ.get("MM_LINUX_KEY_TOOL", "auto").strip().lower()
 stable_sign = None
@@ -64,6 +66,14 @@ MAC_KEY_CODES = {
     "down": 125,
     "up": 126,
     "space": 49
+}
+
+REMOTE_KEY_MAP = {
+    "left": "ArrowLeft",
+    "right": "ArrowRight",
+    "up": "ArrowUp",
+    "down": "ArrowDown",
+    "space": " "
 }
 
 
@@ -120,6 +130,29 @@ def _send_carousel_action(action):
                     return True
         except Exception:
             continue
+    return False
+
+
+def _send_remote_key(key_name):
+    key = REMOTE_KEY_MAP.get(key_name)
+    if key is None:
+        return False
+
+    url = f"{MM_BASE_URL.rstrip('/')}/remote/key"
+    body = json.dumps({"key": key}).encode("utf-8")
+    try:
+        req = request.Request(
+            url,
+            data=body,
+            headers={"Content-Type": "application/json"},
+            method="POST"
+        )
+        with request.urlopen(req, timeout=0.7) as resp:
+            if 200 <= resp.status < 300:
+                print(f"Sent remote key: {key_name} -> {key}")
+                return True
+    except Exception:
+        pass
     return False
 
 
@@ -232,9 +265,12 @@ def try_press(key_name):
         if key_name == "left" and _send_carousel_action("previous"):
             last_action[key_name] = now
             return
+    if REMOTE_KEY_ENABLED and _send_remote_key(key_name):
+        last_action[key_name] = now
+        return
     if not KEY_FALLBACK_ENABLED:
         print(
-            f"Carousel API send failed for '{key_name}'. "
+            f"Remote key send failed for '{key_name}'. "
             "Set MM_KEY_FALLBACK=1 to enable keyboard fallback."
         )
         return
