@@ -26,7 +26,24 @@
     <div class="region top bar">
       <div class="container"></div>
       <div class="region top left"><div class="container"></div></div>
-      <div class="region top center"><div class="container"></div></div>
+      <div class="region top center">
+        <div class="container">
+          <div class="module spotify-player" id="spotify-player">
+            <header>Spotify</header>
+            <div class="spotify-player__body">
+              <div class="spotify-player__artwork">
+                <img id="spotify-artwork" class="is-empty" alt="Album artwork" />
+              </div>
+              <div class="spotify-player__meta">
+                <div class="spotify-player__title bright" id="spotify-title">Not connected</div>
+                <div class="spotify-player__artist small dimmed" id="spotify-artist">Connect Spotify from Settings</div>
+                <div class="spotify-player__status xsmall dimmed" id="spotify-status">Idle</div>
+              </div>
+            </div>
+            <audio id="spotify-audio" preload="none"></audio>
+          </div>
+        </div>
+      </div>
       <div class="region top right"><div class="container"></div></div>
     </div>
     <div class="region upper third"><div class="container"></div></div>
@@ -58,5 +75,6 @@
     <script type="text/javascript" src="js/animateCSS.js"></script>
     <script type="text/javascript" src="js/positions.js"></script>
     <script type="text/javascript" src="js/main.js"></script>
+    <script type="text/javascript" src="js/spotify-player.js"></script>
   </body>
 </html>

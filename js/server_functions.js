@@ -170,6 +170,15 @@ function getEnvVarsAsObj () {
 	if (process.env.MM_CUSTOMCSS_FILE) {
 		obj.customCss = process.env.MM_CUSTOMCSS_FILE.replace(`${global.root_path}/`, "");
 	}
+	if (process.env.MM_SPOTIFY_CLIENT_ID) {
+		obj.spotifyClientId = process.env.MM_SPOTIFY_CLIENT_ID;
+	}
+	if (process.env.MM_SPOTIFY_REDIRECT_URI) {
+		obj.spotifyRedirectUri = process.env.MM_SPOTIFY_REDIRECT_URI;
+	}
+	if (process.env.MM_SPOTIFY_DEVICE_NAME) {
+		obj.spotifyDeviceName = process.env.MM_SPOTIFY_DEVICE_NAME;
+	}
 
 	return obj;
 }

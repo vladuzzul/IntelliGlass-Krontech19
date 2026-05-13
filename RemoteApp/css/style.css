@@ -296,6 +296,28 @@
   .device-name { font-size: 14px; font-weight: 500; color: var(--linen); }
   .device-ip { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
 
+  /* SPOTIFY ACCOUNT */
+  .spotify-account {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 12px; border-radius: 12px;
+    background: var(--fill-soft); border: 1px solid rgba(225,201,167,0.16);
+    margin-bottom: 14px;
+  }
+  .spotify-account__avatar {
+    width: 52px; height: 52px; border-radius: 50%;
+    background: var(--fill-mid); border: 1px solid var(--border-mid);
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden; color: var(--text-dim); font-weight: 600;
+    flex-shrink: 0;
+  }
+  .spotify-account__avatar img {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+  }
+  .spotify-account__avatar img.is-empty { display: none; }
+  .spotify-account__placeholder { font-size: 13px; letter-spacing: 0.5px; }
+  .spotify-account__name { font-size: 14.5px; font-weight: 600; color: var(--linen); }
+  .spotify-account__status { margin-top: 2px; }
+
   /* WEATHER ROW */
   .weather-row {
     display: flex; justify-content: space-between; align-items: center;
@@ -306,13 +328,6 @@
   .weather-row span:nth-child(1) { flex: 1; }
   .weather-row span:nth-child(2) { flex: 1; text-align: center; display: flex; justify-content: center; }
   .weather-row span:nth-child(3) { flex: 1; text-align: right; }
-
-  /* INFO BOX */
-  .info-box {
-    background: var(--fill-soft); border: 1px solid rgba(225,201,167,0.16);
-    border-radius: 10px; padding: 12px 16px; font-size: 12px; color: var(--text-dim);
-    line-height: 1.7;
-  }
 
   /* DIVIDER */
   .divider { height: 1px; background: var(--fill-soft); margin: 12px 0; }
