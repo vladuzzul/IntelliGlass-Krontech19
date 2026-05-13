@@ -8,6 +8,7 @@ import os
 import platform
 import subprocess
 import time
+from shutil import which
 from urllib import request
 
 import cv2
@@ -46,6 +47,7 @@ TARGET_APP_NAME = os.environ.get("MM_TARGET_APP", "MagicMirror")
 MM_BASE_URL = os.environ.get("MM_BASE_URL", "http://127.0.0.1:8080")
 MM_CAROUSEL_MODULE = os.environ.get("MM_CAROUSEL_MODULE", "MMM-Carousel")
 KEY_FALLBACK_ENABLED = os.environ.get("MM_KEY_FALLBACK", "1") == "1"
+LINUX_KEY_TOOL = os.environ.get("MM_LINUX_KEY_TOOL", "auto").strip().lower()
 stable_sign = None
 stable_frames = 0
 STABLE_FRAMES_REQUIRED = 3
@@ -136,20 +138,83 @@ def _send_linux_key(key_name):
         "down": "Down",
         "space": "space"
     }.get(key_name)
+    wtype_key = {
+        "left": "Left",
+        "right": "Right",
+        "up": "Up",
+        "down": "Down",
+        "space": "space"
+    }.get(key_name)
     if xdotool_key is None:
         return False
-    try:
-        # Best-effort: focus a Chromium/Electron window first, then send key.
-        subprocess.run(
-            ["xdotool", "search", "--name", TARGET_APP_NAME, "windowactivate"],
-            check=False,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
-        subprocess.run(["xdotool", "key", xdotool_key], check=False)
-        return True
-    except Exception:
-        return False
+
+    is_wayland = bool(os.environ.get("WAYLAND_DISPLAY"))
+
+    if LINUX_KEY_TOOL in {"auto", "wtype"} and is_wayland and which("wtype") and wtype_key:
+        try:
+            result = subprocess.run(
+                ["wtype", "-k", wtype_key],
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+            if result.returncode == 0:
+                return True
+        except Exception:
+            pass
+
+    if LINUX_KEY_TOOL in {"auto", "xdotool"} and which("xdotool"):
+        title_patterns = [
+            TARGET_APP_NAME,
+            "MagicMirror",
+            "MagicMirror²",
+            "Electron",
+            "electron"
+        ]
+        unique_titles = []
+        for title in title_patterns:
+            if title and title not in unique_titles:
+                unique_titles.append(title)
+        try:
+            for title in unique_titles:
+                search = subprocess.run(
+                    ["xdotool", "search", "--name", title],
+                    check=False,
+                    capture_output=True,
+                    text=True
+                )
+                if search.returncode != 0 or not search.stdout.strip():
+                    continue
+                window_id = search.stdout.strip().splitlines()[0].strip()
+                if not window_id:
+                    continue
+                subprocess.run(
+                    ["xdotool", "windowactivate", "--sync", window_id],
+                    check=False,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL
+                )
+                key_result = subprocess.run(
+                    ["xdotool", "key", "--window", window_id, xdotool_key],
+                    check=False,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL
+                )
+                if key_result.returncode == 0:
+                    return True
+
+            # Last resort: send to currently focused window.
+            key_result = subprocess.run(
+                ["xdotool", "key", xdotool_key],
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+            return key_result.returncode == 0
+        except Exception:
+            pass
+
+    return False
 
 
 def try_press(key_name):

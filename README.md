@@ -104,3 +104,5 @@ Optional environment variables:
 - `MM_CAMERA_WIDTH` / `MM_CAMERA_HEIGHT`
 - `MM_SHOW_CAMERA_WINDOW=0` to disable OpenCV preview window
 - `MM_CAMERA_INDEXES` can force camera probe order (example: `14,15,0` for Raspberry Pi ISP nodes first)
+- `MM_KEY_FALLBACK=0|1` to disable/enable keyboard fallback when API control fails (`1` default)
+- `MM_LINUX_KEY_TOOL=auto|wtype|xdotool` for Linux key injection (`auto` default; on Wayland, install `wtype` for best results)
