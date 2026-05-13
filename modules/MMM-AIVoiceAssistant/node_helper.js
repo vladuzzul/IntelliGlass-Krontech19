@@ -1,5 +1,7 @@
 const NodeHelper = require("node_helper");
 const { Blob: BufferBlob } = require("buffer");
+const { spawn } = require("node:child_process");
+const path = require("node:path");
 
 const INIT_NOTIFICATION = "MMM_AI_ASSISTANT_INIT";
 const ASK_NOTIFICATION = "MMM_AI_ASSISTANT_ASK";
@@ -7,6 +9,8 @@ const RESPONSE_NOTIFICATION = "MMM_AI_ASSISTANT_RESPONSE";
 const ERROR_NOTIFICATION = "MMM_AI_ASSISTANT_ERROR";
 const TRANSCRIBE_NOTIFICATION = "MMM_AI_ASSISTANT_TRANSCRIBE";
 const TRANSCRIBE_RESULT_NOTIFICATION = "MMM_AI_ASSISTANT_TRANSCRIBE_RESULT";
+const TTS_NOTIFICATION = "MMM_AI_ASSISTANT_TTS";
+const TTS_RESULT_NOTIFICATION = "MMM_AI_ASSISTANT_TTS_RESULT";
 
 module.exports = NodeHelper.create({
 	start () {
@@ -30,6 +34,11 @@ module.exports = NodeHelper.create({
 
 		if (notification === TRANSCRIBE_NOTIFICATION) {
 			void this.processTranscription(payload);
+			return;
+		}
+
+		if (notification === TTS_NOTIFICATION) {
+			this.processSystemTts(payload);
 		}
 	},
 
@@ -46,13 +55,100 @@ module.exports = NodeHelper.create({
 			language: "",
 			prompt: ""
 		};
+		const defaultTts = {
+			enabled: true,
+			engine: "browser",
+			language: "",
+			systemCommand: "espeak-ng",
+			systemVoice: "",
+			systemSpeed: 165,
+			systemPitch: 50
+		};
 
 		return {
 			requestTimeoutMs: config?.requestTimeoutMs || 25000,
 			systemPrompt: config?.systemPrompt || "",
 			chatgpt: { ...defaultChatGpt, ...(config?.chatgpt || {}) },
-			sttOpenAI: { ...defaultSttOpenAI, ...(config?.sttOpenAI || {}) }
+			sttOpenAI: { ...defaultSttOpenAI, ...(config?.sttOpenAI || {}) },
+			tts: { ...defaultTts, ...(config?.tts || {}) }
 		};
+	},
+
+	processSystemTts (payload) {
+		const instanceId = payload?.instanceId;
+		if (!instanceId) {
+			return;
+		}
+
+		const instanceConfig = this.instanceConfigs[instanceId];
+		const ttsConfig = instanceConfig?.tts || {};
+		const text = String(payload?.text || "").trim();
+		if (!text || !ttsConfig.enabled || String(ttsConfig.engine || "").toLowerCase() !== "system") {
+			this.sendSocketNotification(TTS_RESULT_NOTIFICATION, {
+				instanceId,
+				ok: false
+			});
+			return;
+		}
+
+		const command = String(ttsConfig.systemCommand || "espeak-ng").trim();
+		const args = this.buildSystemTtsArgs(command, text, ttsConfig);
+		const child = spawn(command, args, {
+			stdio: "ignore",
+			windowsHide: true
+		});
+
+		child.on("error", (error) => {
+			this.sendSocketNotification(TTS_RESULT_NOTIFICATION, {
+				instanceId,
+				ok: false,
+				error: error.message || "System TTS failed."
+			});
+		});
+
+		child.on("close", (code) => {
+			this.sendSocketNotification(TTS_RESULT_NOTIFICATION, {
+				instanceId,
+				ok: code === 0,
+				code
+			});
+		});
+	},
+
+	buildSystemTtsArgs (command, text, ttsConfig) {
+		const executable = path.basename(command).toLowerCase();
+		const language = String(ttsConfig.systemVoice || ttsConfig.language || "en-US").trim();
+		const speed = Number.isFinite(Number(ttsConfig.systemSpeed))
+			? Math.max(80, Math.min(450, Math.round(Number(ttsConfig.systemSpeed))))
+			: 165;
+		const pitch = Number.isFinite(Number(ttsConfig.systemPitch))
+			? Math.max(0, Math.min(99, Math.round(Number(ttsConfig.systemPitch))))
+			: 50;
+
+		if (executable.includes("spd-say")) {
+			return ["-l", language || "en", text];
+		}
+
+		return [
+			"-v",
+			this.normalizeEspeakVoice(language),
+			"-s",
+			String(speed),
+			"-p",
+			String(pitch),
+			text
+		];
+	},
+
+	normalizeEspeakVoice (language) {
+		const normalized = String(language || "en-US").trim().toLowerCase().replace(/_/gu, "-");
+		if (normalized === "en-us") {
+			return "en-us";
+		}
+		if (normalized === "en-gb") {
+			return "en-gb";
+		}
+		return normalized.split("-")[0] || "en";
 	},
 
 	async processPrompt (payload) {

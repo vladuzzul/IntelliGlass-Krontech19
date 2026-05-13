@@ -6,6 +6,8 @@ const RESPONSE_NOTIFICATION = "MMM_AI_ASSISTANT_RESPONSE";
 const ERROR_NOTIFICATION = "MMM_AI_ASSISTANT_ERROR";
 const TRANSCRIBE_NOTIFICATION = "MMM_AI_ASSISTANT_TRANSCRIBE";
 const TRANSCRIBE_RESULT_NOTIFICATION = "MMM_AI_ASSISTANT_TRANSCRIBE_RESULT";
+const TTS_NOTIFICATION = "MMM_AI_ASSISTANT_TTS";
+const TTS_RESULT_NOTIFICATION = "MMM_AI_ASSISTANT_TTS_RESULT";
 
 Module.register("MMM-AIVoiceAssistant", {
 	defaults: {
@@ -32,8 +34,14 @@ Module.register("MMM-AIVoiceAssistant", {
 		systemPrompt: "",
 		showTranscript: true,
 		ttsEnabled: true,
+		ttsEngine: "browser",
+		ttsLanguage: "",
 		ttsVoiceName: "",
 		ttsVoiceLang: "",
+		ttsSystemCommand: "espeak-ng",
+		ttsSystemVoice: "",
+		ttsSystemSpeed: 165,
+		ttsSystemPitch: 50,
 		placeholder: "Gesture the peace sign, then speak.",
 		loadingText: "Thinking",
 		responseMaxLength: 6000,
@@ -127,7 +135,16 @@ Module.register("MMM-AIVoiceAssistant", {
 			requestTimeoutMs: this.config.requestTimeoutMs,
 			systemPrompt: this.config.systemPrompt,
 			chatgpt: this.config.chatgpt,
-			sttOpenAI: this.config.sttOpenAI
+			sttOpenAI: this.config.sttOpenAI,
+			tts: {
+				enabled: this.config.ttsEnabled,
+				engine: this.config.ttsEngine,
+				language: this.resolveTtsLanguage(),
+				systemCommand: this.config.ttsSystemCommand,
+				systemVoice: this.config.ttsSystemVoice,
+				systemSpeed: this.config.ttsSystemSpeed,
+				systemPitch: this.config.ttsSystemPitch
+			}
 		};
 	},
 
@@ -179,6 +196,15 @@ Module.register("MMM-AIVoiceAssistant", {
 			this.statusText = "Ready";
 			this.updateDom(0);
 			this.speakResponse(this.responseText);
+			return;
+		}
+
+		if (notification === TTS_RESULT_NOTIFICATION) {
+			this.ttsUtterance = null;
+			if (this.isSpeaking) {
+				this.isSpeaking = false;
+				this.updateDom(0);
+			}
 			return;
 		}
 
@@ -1085,16 +1111,27 @@ Module.register("MMM-AIVoiceAssistant", {
 			return;
 		}
 
+		const ttsText = this.getTtsText(response);
+		if (!ttsText) {
+			return;
+		}
+
+		if (String(this.config.ttsEngine || "").toLowerCase() === "system") {
+			this.cancelTtsPlayback();
+			this.isSpeaking = true;
+			this.updateDom(0);
+			this.sendSocketNotification(TTS_NOTIFICATION, {
+				instanceId: this.identifier,
+				text: ttsText
+			});
+			return;
+		}
+
 		if (typeof window.SpeechSynthesisUtterance !== "function") {
 			return;
 		}
 
 		if (!this.speechSynthesis || typeof this.speechSynthesis.speak !== "function") {
-			return;
-		}
-
-		const ttsText = this.getTtsText(response);
-		if (!ttsText) {
 			return;
 		}
 
