@@ -64,7 +64,7 @@ To donate, please follow [this](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xcl
 
 `finger.py` now supports camera backend selection:
 
-- `MM_CAMERA_BACKEND=auto` (default): tries OpenCV first, then Picamera2.
+- `MM_CAMERA_BACKEND=auto` (default): on Raspberry Pi tries Picamera2 first, then OpenCV.
 - `MM_CAMERA_BACKEND=opencv`: force `/dev/video*` capture.
 - `MM_CAMERA_BACKEND=picamera2`: force libcamera/Picamera2.
 
@@ -75,16 +75,19 @@ sudo apt update
 sudo apt install -y python3-picamera2 python3-libcamera rpicam-apps
 ```
 
-For Raspberry Pi OS based on Debian 13 (Trixie), install Python 3.12 for `finger.py`:
+For Raspberry Pi OS based on Debian 13 (Trixie), `python3.12` may not be available via `apt`.
+If you need Python 3.12 for MediaPipe on Linux ARM64, create the venv with `uv`:
 
 ```bash
-sudo apt install -y python3.12 python3.12-venv
+rm -rf .venv
+uv venv --python 3.12 --system-site-packages --seed .venv
+uv pip install -p .venv/bin/python -r requirements-finger.txt
 ```
 
 Then start MagicMirror with:
 
 ```bash
-MM_FINGER_PYTHON=python3.12 MM_CAMERA_BACKEND=picamera2 npm start
+MM_CAMERA_BACKEND=picamera2 npm start
 ```
 
 On Linux, the app creates `.venv` with `--system-site-packages` by default so `python3-picamera2` installed via `apt` is visible inside `finger.py`.
@@ -98,6 +101,6 @@ rm -rf .venv
 Optional environment variables:
 
 - `MM_CAMERA_INDEX` (default `0`)
-- `MM_CAMERA_INDEXES` (example: `0,1,2`)
 - `MM_CAMERA_WIDTH` / `MM_CAMERA_HEIGHT`
 - `MM_SHOW_CAMERA_WINDOW=0` to disable OpenCV preview window
+- `MM_CAMERA_INDEXES` can force camera probe order (example: `14,15,0` for Raspberry Pi ISP nodes first)

@@ -159,7 +159,7 @@ function ensureVenv () {
 		);
 		Log.error(
 			`Detected ${basePython} (${basePythonVersion.major}.${basePythonVersion.minor}). `
-			+ "Install python3.12/python3.11 and rerun with MM_FINGER_PYTHON=python3.12."
+			+ "Use Python 3.12/3.11 (for example via uv) and recreate .venv."
 		);
 		process.exit(1);
 	}

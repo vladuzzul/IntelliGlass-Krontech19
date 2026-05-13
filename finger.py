@@ -17,8 +17,11 @@ import mediapipe as mp
 
 try:
     from picamera2 import Picamera2
-except Exception:
+except Exception as err:
+    PICAMERA2_IMPORT_ERROR = err
     Picamera2 = None
+else:
+    PICAMERA2_IMPORT_ERROR = None
 
 try:
     import pyautogui
@@ -226,6 +229,9 @@ def finger_position(image, detection_results, hand_no=0):
 
 
 def _parse_camera_indexes():
+    is_linux_arm = platform.system() == "Linux" and platform.machine() in {
+        "aarch64", "armv7l", "armv6l"
+    }
     raw_indexes = os.environ.get("MM_CAMERA_INDEXES")
     if raw_indexes:
         indexes = []
@@ -238,7 +244,12 @@ def _parse_camera_indexes():
             except ValueError:
                 print(f"Ignoring invalid camera index '{token}' from MM_CAMERA_INDEXES.")
     else:
-        indexes = [CAMERA_INDEX, 0, 1, 2]
+        if is_linux_arm:
+            # On Raspberry Pi/libcamera, /dev/video0 is often a raw Unicam node.
+            # /dev/video14 and /dev/video15 are ISP output nodes and usually safer for OpenCV.
+            indexes = [CAMERA_INDEX, 14, 15, 12, 0, 1, 2]
+        else:
+            indexes = [CAMERA_INDEX, 0, 1, 2]
 
     unique = []
     for index in indexes:
@@ -273,6 +284,8 @@ def _open_opencv_camera():
 
 def _open_picamera2_camera():
     if Picamera2 is None:
+        if PICAMERA2_IMPORT_ERROR is not None:
+            print(f"Picamera2 import failed: {PICAMERA2_IMPORT_ERROR}")
         return None
 
     try:
@@ -309,6 +322,17 @@ def create_camera():
         print(f"Invalid MM_CAMERA_BACKEND='{backend}', falling back to auto.")
         backend = "auto"
 
+    prefer_picamera2_first = (
+        backend == "auto"
+        and platform.system() == "Linux"
+        and platform.machine() in {"aarch64", "armv7l", "armv6l"}
+    )
+
+    if prefer_picamera2_first:
+        camera = _open_picamera2_camera()
+        if camera is not None:
+            return camera
+
     if backend in {"auto", "opencv"}:
         camera = _open_opencv_camera()
         if camera is not None:
@@ -319,7 +343,7 @@ def create_camera():
                 "Set MM_CAMERA_BACKEND=picamera2 to force Picamera2."
             )
 
-    if backend in {"auto", "picamera2"}:
+    if backend in {"auto", "picamera2"} and not prefer_picamera2_first:
         camera = _open_picamera2_camera()
         if camera is not None:
             return camera
