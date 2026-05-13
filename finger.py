@@ -495,6 +495,7 @@ def main():
                     continue
                 frame_counter += 1
 
+                image = cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
                 # Flip for selfie view, then convert BGR->RGB for MediaPipe.
                 image = cv2.cvtColor(cv2.flip(image, 1), cv2.COLOR_BGR2RGB)
                 image.flags.writeable = False
