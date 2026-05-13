@@ -40,6 +40,10 @@ CAMERA_BACKEND = os.environ.get("MM_CAMERA_BACKEND", "auto").strip().lower()
 CAMERA_INDEX = int(os.environ.get("MM_CAMERA_INDEX", "0"))
 SHOW_CAMERA_WINDOW = os.environ.get("MM_SHOW_CAMERA_WINDOW", "1") == "1"
 CAMERA_INIT_WAIT = float(os.environ.get("MM_CAMERA_INIT_WAIT", "0.25"))
+HAND_DETECTION_CONFIDENCE = float(os.environ.get("MM_HAND_DETECTION_CONFIDENCE", "0.6"))
+HAND_TRACKING_CONFIDENCE = float(os.environ.get("MM_HAND_TRACKING_CONFIDENCE", "0.5"))
+GESTURE_DEBUG = os.environ.get("MM_GESTURE_DEBUG", "0") == "1"
+GESTURE_DEBUG_INTERVAL = int(os.environ.get("MM_GESTURE_DEBUG_INTERVAL", "20"))
 last_action = {"left": 0.0, "right": 0.0, "up": 0.0, "down": 0.0, "space": 0.0}
 ACTION_COOLDOWN = 0.7
 last_sign = None
@@ -252,10 +256,15 @@ def try_press(key_name):
     print(f"Sent key: {key_name} -> app: {TARGET_APP_NAME}")
 
 
-def detect_sign_and_action(lm_list, total_fingers, current_state):
+def detect_sign_and_action(lm_list, total_fingers, current_state, frame_width, frame_height):
     sign = f"{total_fingers}_FINGERS"
     action = None
     new_state = current_state
+    # Position thresholds relative to current frame size.
+    x_left_threshold = int(frame_width * 0.42)
+    x_right_threshold = int(frame_width * 0.58)
+    y_up_threshold = int(frame_height * 0.42)
+    y_down_threshold = int(frame_height * 0.58)
 
     if total_fingers == 4:
         new_state = "Play"
@@ -265,17 +274,17 @@ def detect_sign_and_action(lm_list, total_fingers, current_state):
         sign = "PAUSE_SIGN"
         action = "space"
     elif total_fingers == 1:
-        if lm_list[8][1] < 300:
+        if lm_list[8][1] < x_left_threshold:
             sign = "LEFT_SIGN"
             action = "left"
-        elif lm_list[8][1] > 400:
+        elif lm_list[8][1] > x_right_threshold:
             sign = "RIGHT_SIGN"
             action = "right"
     elif total_fingers == 2:
-        if lm_list[9][2] < 210:
+        if lm_list[9][2] < y_up_threshold:
             sign = "UP_SIGN"
             action = "up"
-        elif lm_list[9][2] > 230:
+        elif lm_list[9][2] > y_down_threshold:
             sign = "DOWN_SIGN"
             action = "down"
 
@@ -439,14 +448,17 @@ def main():
 
     try:
         with mp_hands.Hands(
-            min_detection_confidence=0.8,
-            min_tracking_confidence=0.5
+            max_num_hands=1,
+            min_detection_confidence=HAND_DETECTION_CONFIDENCE,
+            min_tracking_confidence=HAND_TRACKING_CONFIDENCE
         ) as hands:
+            frame_counter = 0
             while True:
                 success, image = camera.read()
                 if not success or image is None:
                     print("Ignoring empty camera frame.")
                     continue
+                frame_counter += 1
 
                 # Flip for selfie view, then convert BGR->RGB for MediaPipe.
                 image = cv2.cvtColor(cv2.flip(image, 1), cv2.COLOR_BGR2RGB)
@@ -473,8 +485,14 @@ def main():
 
                     total_fingers = fingers.count(1)
                     current_sign, pending_action, state = detect_sign_and_action(
-                        lm_list, total_fingers, state
+                        lm_list, total_fingers, state, image.shape[1], image.shape[0]
                     )
+                    if GESTURE_DEBUG and frame_counter % GESTURE_DEBUG_INTERVAL == 0:
+                        print(
+                            f"[debug] fingers={total_fingers} sign={current_sign} "
+                            f"index_tip=({lm_list[8][1]}, {lm_list[8][2]}) "
+                            f"w={image.shape[1]} h={image.shape[0]}"
+                        )
                     if current_sign == stable_sign:
                         stable_frames += 1
                     else:
@@ -494,6 +512,8 @@ def main():
                             print(f"Action fired: {pending_action}")
                             last_dispatched_sign = current_sign
                 else:
+                    if GESTURE_DEBUG and frame_counter % GESTURE_DEBUG_INTERVAL == 0:
+                        print("[debug] no hand landmarks detected")
                     last_dispatched_sign = None
 
                 if SHOW_CAMERA_WINDOW:
