@@ -1,35 +1,35 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    /* Palette — Rich Black 0A0908 · Dark Sienna 49111C · Cultured F2F4F3 · Grullo A9927D · Umber 5E503F */
-    --midnight:      #0a0908;
-    --test:          #1a1411;
-    --midnight-card: #171210;
-    --midnight-deep: #100d0b;
-    --slate-blue:    #a9927d;
-    --slate-hover:   #b7a38f;
-    --periwinkle:    #f2f4f3;
-    --pale-slate:    #c8b9a9;
-    --linen:         #f2f4f3;
-    --text-primary:  #ece7e1;
-    --text-muted:    #c2b2a2;
-    --text-dim:      rgba(194,178,162,0.56);
-    --border-soft:   rgba(169,146,125,0.2);
-    --border-mid:    rgba(169,146,125,0.34);
-    --fill-soft:     rgba(169,146,125,0.09);
-    --fill-mid:      rgba(169,146,125,0.15);
-    --fill-hover:    rgba(169,146,125,0.24);
-    --fill-active:   rgba(94,80,63,0.34);
-    --fill-strong:   rgba(94,80,63,0.50);
-    --glow-sm:       rgba(94,80,63,0.2);
-    --glow-md:       rgba(169,146,125,0.28);
-    --success:       #7fbd97;
-    --success-fill:  rgba(127,189,151,0.14);
-    --warning:       #c9a66f;
-    --warning-fill:  rgba(201,166,111,0.14);
-    --danger:        #cf8c8c;
-    --danger-fill:   rgba(207,140,140,0.16);
-    --danger-border: rgba(207,140,140,0.30);
+    /* A more vibrant and modern palette */
+    --midnight:      #1a1a1a; /* Darker, cleaner black */
+    --test:          #2d2d2d; /* Slightly lighter dark shade */
+    --midnight-card: #252525; /* Card background */
+    --midnight-deep: #121212; /* Deepest black for contrast */
+    --slate-blue:    #4A90E2; /* A nice, vibrant blue */
+    --slate-hover:   #5aa1f2; /* Lighter blue for hover */
+    --periwinkle:    #E0E0E0; /* Light gray for text */
+    --pale-slate:    #B0B0B0; /* Muted gray */
+    --linen:         #F5F5F5; /* Almost white for backgrounds */
+    --text-primary:  #FFFFFF; /* Pure white for primary text */
+    --text-muted:    #A0A0A0; /* Muted text color */
+    --text-dim:      rgba(160, 160, 160, 0.7);
+    --border-soft:   rgba(74, 144, 226, 0.2);
+    --border-mid:    rgba(74, 144, 226, 0.4);
+    --fill-soft:     rgba(74, 144, 226, 0.1);
+    --fill-mid:      rgba(74, 144, 226, 0.2);
+    --fill-hover:    rgba(74, 144, 226, 0.3);
+    --fill-active:   rgba(74, 144, 226, 0.4);
+    --fill-strong:   rgba(74, 144, 226, 0.6);
+    --glow-sm:       rgba(74, 144, 226, 0.2);
+    --glow-md:       rgba(74, 144, 226, 0.3);
+    --success:       #7ED321; /* Bright green for success */
+    --success-fill:  rgba(126, 211, 33, 0.15);
+    --warning:       #F5A623; /* Bright orange for warning */
+    --warning-fill:  rgba(245, 166, 35, 0.15);
+    --danger:        #D0021B; /* Strong red for danger */
+    --danger-fill:   rgba(208, 2, 27, 0.15);
+    --danger-border: rgba(208, 2, 27, 0.3);
   }
 
   html, body {
